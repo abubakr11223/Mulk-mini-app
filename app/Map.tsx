@@ -441,13 +441,13 @@ export default function Map() {
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
             className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
           >
-            <div className="relative w-full h-[450px] bg-gray-100">
+            <div className="relative w-full aspect-[4/5] bg-gray-100">
               <div className="flex overflow-x-auto snap-x snap-mandatory h-full w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {selected.images && selected.images.length > 0 ? (
                   selected.images.map((img, idx) => (
                     <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
                       <img src={img} className="object-cover w-full h-full" />
-                      <div className="absolute top-4 right-4 bg-black/40 text-white text-[12px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md z-20 pointer-events-none">
+                      <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md z-20 pointer-events-none shadow-md border border-white/20">
                         {idx + 1} / {selected.images?.length}
                       </div>
                     </div>
