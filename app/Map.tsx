@@ -391,15 +391,17 @@ export default function Map() {
                 <div className="relative w-full h-[220px] rounded-[16px] overflow-hidden mb-4 border border-gray-100 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   {selected.images && selected.images.length > 0 ? (
                     selected.images.map((img, idx) => (
-                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
-                        <img src={img} alt={selected.title} className="object-cover w-full h-full" />
+                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0 bg-gray-900">
+                        <img src={img} alt={selected.title} className="object-contain w-full h-full" />
                         <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md">
                           {idx + 1} / {selected.images?.length}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <img src={selected.image} alt={selected.title} className="object-cover min-w-full h-full shrink-0" />
+                    <div className="min-w-full h-full shrink-0 bg-gray-900">
+                      <img src={selected.image} alt={selected.title} className="object-contain w-full h-full" />
+                    </div>
                   )}
                   {selected.hot && (
                      <div className="absolute top-3 left-3 bg-[#FFD600] text-black font-extrabold text-[11px] px-3 py-1.5 rounded-md shadow-md uppercase tracking-wider z-10 pointer-events-none">TOP E'lon</div>
@@ -439,16 +441,19 @@ export default function Map() {
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
             className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
           >
-            <div className="relative w-full h-[320px]">
+            <div className="relative w-full h-[320px] bg-gray-900">
               <div className="flex overflow-x-auto snap-x snap-mandatory h-full w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {selected.images && selected.images.length > 0 ? (
                   selected.images.map((img, idx) => (
                     <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
-                      <img src={img} className="object-cover w-full h-full" />
+                      <img src={img} className="object-contain w-full h-full" />
+                      <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] font-bold px-3 py-1.5 rounded-md backdrop-blur-md z-10 pointer-events-none">
+                        {idx + 1} / {selected.images?.length}
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <img src={selected.image} className="w-full h-full object-cover shrink-0" />
+                  <img src={selected.image} className="w-full h-full object-contain shrink-0" />
                 )}
               </div>
               <button 
