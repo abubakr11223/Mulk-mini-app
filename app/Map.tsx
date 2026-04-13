@@ -59,6 +59,7 @@ export type House = {
   title: string
   description: string
   image: string
+  images?: string[]
   rooms: number
   area: number
   floor: number
@@ -387,13 +388,24 @@ export default function Map() {
             >
               <div className="max-w-md mx-auto relative px-1">
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
-                <div className="relative w-full h-[220px] rounded-[16px] overflow-hidden mb-4 border border-gray-100">
-                  <img src={selected.image} alt={selected.title} className="object-cover w-full h-full" />
+                <div className="relative w-full h-[220px] rounded-[16px] overflow-hidden mb-4 border border-gray-100 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {selected.images && selected.images.length > 0 ? (
+                    selected.images.map((img, idx) => (
+                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
+                        <img src={img} alt={selected.title} className="object-cover w-full h-full" />
+                        <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md">
+                          {idx + 1} / {selected.images?.length}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <img src={selected.image} alt={selected.title} className="object-cover min-w-full h-full shrink-0" />
+                  )}
                   {selected.hot && (
-                     <div className="absolute top-3 left-3 bg-[#FFD600] text-black font-extrabold text-[11px] px-3 py-1.5 rounded-md shadow-md uppercase tracking-wider">TOP E'lon</div>
+                     <div className="absolute top-3 left-3 bg-[#FFD600] text-black font-extrabold text-[11px] px-3 py-1.5 rounded-md shadow-md uppercase tracking-wider z-10 pointer-events-none">TOP E'lon</div>
                   )}
                   {selected.crmId && (
-                     <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white font-bold text-[10px] px-2 py-1 rounded-md uppercase tracking-wider">ID: {selected.crmId}</div>
+                     <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white font-bold text-[10px] px-2 py-1 rounded-md uppercase tracking-wider z-10 pointer-events-none">ID: {selected.crmId}</div>
                   )}
                 </div>
                 <div className="mb-4 text-left">
@@ -428,6 +440,17 @@ export default function Map() {
             className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
           >
             <div className="relative w-full h-[320px]">
+              <div className="flex overflow-x-auto snap-x snap-mandatory h-full w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {selected.images && selected.images.length > 0 ? (
+                  selected.images.map((img, idx) => (
+                    <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
+                      <img src={img} className="object-cover w-full h-full" />
+                    </div>
+                  ))
+                ) : (
+                  <img src={selected.image} className="w-full h-full object-cover shrink-0" />
+                )}
+              </div>
               <button 
                 onClick={() => {
                    setShowDetail(false); 
@@ -437,7 +460,6 @@ export default function Map() {
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
               </button>
-              <img src={selected.image} className="w-full h-full object-cover" />
               
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
               
