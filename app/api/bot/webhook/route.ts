@@ -35,7 +35,7 @@ export async function POST(req: Request) {
             chat_id: chatId,
             text: "Assalomu alaykum! Mulk qidirish uchun ilovaga kiring 👇",
             reply_markup: {
-              inline_keyboard: [[{ text: "🏠 Ilovaga kirish", web_app: { url: "https://helena-compressed-ungladly.ngrok-free.dev" } }]]
+              inline_keyboard: [[{ text: "🏠 Ilovaga kirish", web_app: { url: "https://mulk.77.37.54.250.nip.io" } }]]
             }
           })
         })
