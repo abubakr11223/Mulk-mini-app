@@ -15,6 +15,8 @@ model House {
   price       String
   hot         Boolean  @default(false)
   image       String   @default("https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80")
+  images      String[] @default([])
+  mediaGroupId String?
   title       String   @default("Mulk")
   description String   @default("Rieltorlar uchun maxsus yopiq mulk.")
   rooms       Int      @default(0)
