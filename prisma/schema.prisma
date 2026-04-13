@@ -13,6 +13,8 @@ model House {
   lat         Float
   lng         Float
   price       String
+  oldPrice    String?
+  discount    Int?
   hot         Boolean  @default(false)
   image       String   @default("https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80")
   images      String[] @default([])
