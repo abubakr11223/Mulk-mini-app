@@ -91,7 +91,7 @@ export default function Map() {
   const [showDetail, setShowDetail] = useState(false)
 
   useEffect(() => {
-    fetch(\`/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=\${Date.now()}\`)
+    fetch("/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=" + Date.now())
       .then((res) => res.json())
       .then((data) => setHouses(data))
   }, [])
@@ -356,13 +356,13 @@ export default function Map() {
                  <div className="w-px h-10 bg-gray-200"></div>
                  <div className="flex flex-col items-center">
                    <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                   <span className="font-black text-[16px] text-gray-900">{selected.area ? `${selected.area} m²` : '—'}</span>
+                   <span className="font-black text-[16px] text-gray-900">{selected.area ? selected.area + " m²" : '—'}</span>
                    <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Yuzasi</span>
                  </div>
                  <div className="w-px h-10 bg-gray-200"></div>
                  <div className="flex flex-col items-center">
                    <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                   <span className="font-black text-[16px] text-gray-900">{selected.floor ? `${selected.floor}/${selected.totalFloors || '—'}` : '—'}</span>
+                   <span className="font-black text-[16px] text-gray-900">{selected.floor ? selected.floor + "/" + (selected.totalFloors || '—') : '—'}</span>
                    <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Qavat</span>
                  </div>
               </div>
