@@ -388,21 +388,19 @@ export default function Map() {
             >
               <div className="max-w-md mx-auto relative px-1">
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
-                <div className="relative w-full h-[220px] rounded-[16px] overflow-hidden mb-4 border border-gray-100 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="relative w-full h-[250px] rounded-[16px] overflow-hidden mb-4 border border-gray-100 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] bg-gray-100">
                   {selected.images && selected.images.length > 0 ? (
                     selected.images.map((img, idx) => (
-                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0 bg-black flex items-center justify-center">
-                        <div className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110" style={{ backgroundImage: `url(${img})` }} />
-                        <img src={img} alt={selected.title} className="relative z-10 object-contain w-full h-full drop-shadow-xl" />
+                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
+                        <img src={img} alt={selected.title} className="object-cover w-full h-full" />
                         <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md z-20 pointer-events-none">
                           {idx + 1} / {selected.images?.length}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="min-w-full h-full shrink-0 bg-black flex items-center justify-center relative">
-                      <div className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110" style={{ backgroundImage: `url(${selected.image})` }} />
-                      <img src={selected.image} alt={selected.title} className="relative z-10 object-contain w-full h-full drop-shadow-xl" />
+                    <div className="min-w-full h-full shrink-0 relative">
+                      <img src={selected.image} alt={selected.title} className="object-cover w-full h-full" />
                     </div>
                   )}
                   {selected.hot && (
@@ -443,22 +441,20 @@ export default function Map() {
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
             className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
           >
-            <div className="relative w-full h-[380px] bg-black">
+            <div className="relative w-full h-[450px] bg-gray-100">
               <div className="flex overflow-x-auto snap-x snap-mandatory h-full w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {selected.images && selected.images.length > 0 ? (
                   selected.images.map((img, idx) => (
-                    <div key={idx} className="min-w-full h-full relative snap-center shrink-0 flex items-center justify-center">
-                      <div className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110" style={{ backgroundImage: `url(${img})` }} />
-                      <img src={img} className="relative z-10 object-contain w-full h-full drop-shadow-2xl" />
+                    <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
+                      <img src={img} className="object-cover w-full h-full" />
                       <div className="absolute top-4 right-4 bg-black/40 text-white text-[12px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md z-20 pointer-events-none">
                         {idx + 1} / {selected.images?.length}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="min-w-full h-full relative border-0 flex items-center justify-center shrink-0">
-                    <div className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110" style={{ backgroundImage: `url(${selected.image})` }} />
-                    <img src={selected.image} className="relative z-10 object-contain w-full h-full drop-shadow-2xl" />
+                  <div className="min-w-full h-full relative border-0 shrink-0">
+                    <img src={selected.image} className="object-cover w-full h-full" />
                   </div>
                 )}
               </div>
