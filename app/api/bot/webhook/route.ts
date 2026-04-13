@@ -70,7 +70,12 @@ export async function POST(req: Request) {
           })
         }
       } else if (mediaGroupId) {
+        // Race condition: wait for the primary webhook to finish saving the mediaGroup state
         house = await prisma.house.findFirst({ where: { mediaGroupId } })
+        if (!house) {
+          await new Promise(r => setTimeout(r, 2000));
+          house = await prisma.house.findFirst({ where: { mediaGroupId } })
+        }
       }
 
       if (house) {
