@@ -211,22 +211,36 @@ export default function Map() {
         {view === "map" && !selected && !showDetail && !isFilterOpen && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="absolute top-6 left-0 right-0 z-[10] px-4 flex justify-between items-start pointer-events-none"
+            className="absolute top-6 left-0 right-0 z-[10] px-4 flex flex-col gap-3 pointer-events-none"
           >
-            <button 
-              onClick={() => setView("gallery")} 
-              className="pointer-events-auto bg-white/90 backdrop-blur-md rounded-[16px] px-4 py-3.5 shadow-[0_8px_20px_rgba(0,0,0,0.1)] flex items-center gap-2 border border-gray-100 active:scale-95 transition-transform"
-            >
-              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"></path></svg>
-              <span className="font-extrabold text-[15px] text-black">Orqaga</span>
-            </button>
-            
-            <button 
-              onClick={() => setIsFilterOpen(true)} 
-              className="pointer-events-auto bg-white/90 backdrop-blur-md rounded-[16px] p-3.5 shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 active:scale-95 transition-transform"
-            >
-              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-            </button>
+            <div className="flex justify-between items-start w-full">
+              <button 
+                onClick={() => setView("gallery")} 
+                className="pointer-events-auto bg-white/90 backdrop-blur-md rounded-[16px] px-4 py-3.5 shadow-[0_8px_20px_rgba(0,0,0,0.1)] flex items-center gap-2 border border-gray-100 active:scale-95 transition-transform"
+              >
+                <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+                <span className="font-extrabold text-[15px] text-black">{t.back}</span>
+              </button>
+              
+              <button 
+                onClick={() => setIsFilterOpen(true)} 
+                className="pointer-events-auto bg-white/90 backdrop-blur-md rounded-[16px] p-3.5 shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 active:scale-95 transition-transform"
+              >
+                <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+              </button>
+            </div>
+
+            <div className="w-full bg-white/90 backdrop-blur-md rounded-[16px] flex items-center px-4 py-3.5 border border-gray-100 shadow-[0_8px_20px_rgba(0,0,0,0.1)] pointer-events-auto">
+              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
+              <input 
+                type="text" 
+                placeholder={t.search} 
+                className="bg-transparent border-none outline-none ml-2 w-full text-[14px] font-bold text-gray-900 placeholder-gray-400" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
