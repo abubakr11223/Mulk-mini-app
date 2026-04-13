@@ -87,10 +87,23 @@ async function syncLeads() {
   let totalSynced = 0;
 
   while (true) {
-    const data = await fetchLeads(page);
-    if (!data || !data._embedded?.leads?.length) break;
+    // Filter qo'llanmasdan to'g'ridan pipeline dan olamiz
+    const url = `${BASE_URL}/leads?limit=50&page=${page}&with=custom_fields&filter[pipeline_id][]=${PIPELINE_ID}`;
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+    
+    if (res.status === 204) break;
+    if (!res.ok) {
+      console.error(`[SYNC] AmoCRM error: ${res.status}`);
+      break;
+    }
+    
+    const data = await res.json();
+    const allLeads = data._embedded?.leads || [];
+    if (!allLeads.length) break; // API da lead qolmadi
 
-    const leads = data._embedded.leads;
+    // Faqat "Mulk mini app" statusidagi leadlarni filtrlaymiz
+    const leads = allLeads.filter(l => l.status_id === STATUS_ID);
+    console.log(`[SYNC] Page ${page}: ${allLeads.length} lead ichidan ${leads.length} ta "Mulk mini app" topildi`);
 
     for (const lead of leads) {
       const crmId = String(lead.id);
