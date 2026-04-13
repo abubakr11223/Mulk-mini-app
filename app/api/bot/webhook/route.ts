@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    // Admin Commands
+    // Admin photo handler - FAQAT mavjud uyga rasm qo'shadi, yangi uy yaratmaydi
     if (photos && photos.length > 0) {
       await globalThisAny.telegramLock;
       let release: any;
@@ -54,78 +54,47 @@ export async function POST(req: Request) {
         const fileId = bestPhoto.file_id
         const mediaGroupId = msg.media_group_id
 
-        let crmIdMatch = text.match(/\d+/)
+        let crmIdMatch = text.match(/\d{5,}/)  // Kamida 5 raqamli ID
         let crmId = crmIdMatch ? crmIdMatch[0] : null
         let house = null
 
-      if (crmId) {
-        house = await prisma.house.findUnique({ where: { crmId } })
-        if (!house) {
-          // AmoCRM webhooks depend on network/ngrok stability. By directly creating here, 
-          // we guarantee the house will exist if the admin sends a photo with an ID!
-          house = await prisma.house.create({
-            data: {
-              crmId,
-              title: "Yangi Mulk",
-              price: "Kelishilgan",
-              lat: 41.311081 + (Math.random() * 0.05),
-              lng: 69.240562 + (Math.random() * 0.05),
-              mediaGroupId
-            }
-          })
-        }
-        if (house && mediaGroupId) {
-          await prisma.house.update({
-            where: { id: house.id },
-            data: { mediaGroupId }
-          })
-        }
-      } else if (mediaGroupId) {
-        // Race condition: wait for the primary webhook to finish saving the mediaGroup state
-        house = await prisma.house.findFirst({ where: { mediaGroupId } })
-        if (!house) {
-          await new Promise(r => setTimeout(r, 2000));
+        if (crmId) {
+          // Faqat AmoCRM dan kelgan (amocrm-sync tomonidan yaratilgan) uyni qidiradi
+          house = await prisma.house.findUnique({ where: { crmId } })
+          if (!house) {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: chatId, text: `❌ ID: ${crmId} bazada topilmadi. Avval AmoCRM da "Mulk mini app" ustuniga qo'ying!` })
+            })
+            return NextResponse.json({ ok: true })
+          }
+          if (mediaGroupId) {
+            await prisma.house.update({ where: { id: house.id }, data: { mediaGroupId } })
+          }
+        } else if (mediaGroupId) {
           house = await prisma.house.findFirst({ where: { mediaGroupId } })
-        }
-      }
-
-      if (house) {
-        const imgUrl = `/api/image?id=${fileId}`
-        
-        let newImages = house.images || []
-        if (!newImages.includes(imgUrl)) {
-           newImages.push(imgUrl)
+          if (!house) {
+            await new Promise(r => setTimeout(r, 2000));
+            house = await prisma.house.findFirst({ where: { mediaGroupId } })
+          }
         }
 
-        let updateData: any = {
-           images: newImages
-        }
-        
-        if (!house.image || house.image.includes('unsplash.com')) {
-           updateData.image = imgUrl
-        }
-        
-        await prisma.house.update({
-           where: { id: house.id },
-           data: updateData
-        })
-        
-        if (crmId) {
-           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        if (house) {
+          const imgUrl = `/api/image?id=${fileId}`
+          let newImages = house.images || []
+          if (!newImages.includes(imgUrl)) newImages.push(imgUrl)
+          let updateData: any = { images: newImages }
+          if (!house.image || house.image.includes('unsplash.com')) updateData.image = imgUrl
+          await prisma.house.update({ where: { id: house.id }, data: updateData })
+          if (crmId) {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
               method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, text: `✅ ID: ${house.crmId} bazadagi mulkka rasm qo'shildi!` })
-           })
+              body: JSON.stringify({ chat_id: chatId, text: `✅ ID: ${house.crmId} mulkka rasm qo'shildi!` })
+            })
+          }
         }
-      } else {
-        if (crmId) {
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, text: `❌ Avtomatik yaratishda xato yuz berdi.` })
-          })
-        }
-      }
       } finally {
-        release(); // free the queue for the next photo
+        release();
       }
     } else {
        if (text === "/start") {
