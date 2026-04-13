@@ -65,7 +65,7 @@ type House = {
   landmark?: string
 }
 
-function FlyToMarker({ selected }: { selected: House | null }) {
+function MapController({ selected, filteredHouses, isSearching }: { selected: House | null, filteredHouses: House[], isSearching: boolean }) {
   const map = useMap()
 
   useEffect(() => {
@@ -74,8 +74,15 @@ function FlyToMarker({ selected }: { selected: House | null }) {
         duration: 0.8,
         easeLinearity: 0.25,
       })
+    } else if (isSearching && filteredHouses.length > 0) {
+      const bounds = L.latLngBounds(filteredHouses.map(h => [h.lat, h.lng]))
+      if (filteredHouses.length === 1) {
+        map.flyTo([filteredHouses[0].lat, filteredHouses[0].lng], 15, { duration: 0.6 })
+      } else {
+        map.flyToBounds(bounds, { padding: [50, 50], duration: 0.6, maxZoom: 14 })
+      }
     }
-  }, [selected])
+  }, [selected, filteredHouses, isSearching, map])
 
   return null
 }
@@ -195,7 +202,7 @@ export default function Map() {
           <TileLayer 
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" 
           />
-          <FlyToMarker selected={selected} />
+          <MapController selected={selected} filteredHouses={filteredHouses} isSearching={searchQuery.trim().length > 0} />
 
           <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
             {filteredHouses.map((h) => (
