@@ -391,16 +391,16 @@ export default function Map() {
                 <div className="relative w-full rounded-[16px] overflow-hidden mb-4 border border-gray-200 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] bg-black">
                   {selected.images && selected.images.length > 0 ? (
                     selected.images.map((img, idx) => (
-                      <div key={idx} className="min-w-full relative snap-center shrink-0 flex items-start justify-center">
-                        <img src={img} alt={selected.title} className="w-full h-64 object-cover rounded-xl" />
+                      <div key={idx} className="min-w-full relative snap-center shrink-0">
+                        <img src={img} alt={selected.title} className="w-full h-auto block" />
                         <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md z-20 pointer-events-none">
                           {idx + 1} / {selected.images?.length}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="min-w-full relative shrink-0 flex items-start justify-center">
-                      <img src={selected.image} alt={selected.title} className="w-full h-64 object-cover rounded-xl" />
+                    <div className="min-w-full relative shrink-0">
+                      <img src={selected.image} alt={selected.title} className="w-full h-auto block" />
                     </div>
                   )}
                   {selected.hot && (
@@ -445,16 +445,16 @@ export default function Map() {
               <div className="flex overflow-x-auto snap-x snap-mandatory w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-center">
                 {selected.images && selected.images.length > 0 ? (
                   selected.images.map((img, idx) => (
-                    <div key={idx} className="min-w-full relative snap-center shrink-0 flex items-center justify-center bg-black aspect-[4/3] overflow-hidden">
-                      <img src={img} className="w-full h-full object-cover" />
+                    <div key={idx} className="min-w-full relative snap-center shrink-0">
+                      <img src={img} className="w-full h-auto block" />
                       <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md z-20 pointer-events-none shadow-md border border-white/20">
                         {idx + 1} / {selected.images?.length}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="min-w-full relative shrink-0 flex items-center justify-center bg-black aspect-[4/3] overflow-hidden">
-                    <img src={selected.image} className="w-full h-full object-cover" />
+                  <div className="min-w-full relative shrink-0">
+                    <img src={selected.image} className="w-full h-auto block" />
                   </div>
                 )}
               </div>
