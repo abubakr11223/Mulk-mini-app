@@ -92,8 +92,13 @@ export async function POST(req: Request) {
       if (house) {
         const imgUrl = `/api/image?id=${fileId}`
         
+        let newImages = house.images || []
+        if (!newImages.includes(imgUrl)) {
+           newImages.push(imgUrl)
+        }
+
         let updateData: any = {
-           images: { push: imgUrl }
+           images: newImages
         }
         
         if (!house.image || house.image.includes('unsplash.com')) {
