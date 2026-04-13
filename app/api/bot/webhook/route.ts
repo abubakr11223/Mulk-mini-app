@@ -49,6 +49,20 @@ export async function POST(req: Request) {
 
       if (crmId) {
         house = await prisma.house.findUnique({ where: { crmId } })
+        if (!house) {
+          // AmoCRM webhooks depend on network/ngrok stability. By directly creating here, 
+          // we guarantee the house will exist if the admin sends a photo with an ID!
+          house = await prisma.house.create({
+            data: {
+              crmId,
+              title: "Yangi Mulk",
+              price: "Kelishilgan",
+              lat: 41.311081 + (Math.random() * 0.05),
+              lng: 69.240562 + (Math.random() * 0.05),
+              mediaGroupId
+            }
+          })
+        }
         if (house && mediaGroupId) {
           await prisma.house.update({
             where: { id: house.id },
@@ -85,7 +99,7 @@ export async function POST(req: Request) {
         if (crmId) {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
               method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, text: `❌ ID: ${crmId} topilmadi! CRM dan tekshiring.` })
+              body: JSON.stringify({ chat_id: chatId, text: `❌ Avtomatik yaratishda xato yuz berdi.` })
           })
         }
       }
