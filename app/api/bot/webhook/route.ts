@@ -3,6 +3,12 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+// To prevent SQLite read-modify-write race conditions when Telegram fires 4 webhooks concurrently
+const globalThisAny = globalThis as any;
+if (!globalThisAny.telegramLock) {
+  globalThisAny.telegramLock = Promise.resolve();
+}
+
 export async function POST(req: Request) {
   try {
     const update = await req.json()
@@ -39,13 +45,18 @@ export async function POST(req: Request) {
 
     // Admin Commands
     if (photos && photos.length > 0) {
-      const bestPhoto = photos[photos.length - 1] 
-      const fileId = bestPhoto.file_id
-      const mediaGroupId = msg.media_group_id
+      await globalThisAny.telegramLock;
+      let release: any;
+      globalThisAny.telegramLock = new Promise(resolve => release = resolve);
 
-      let crmIdMatch = text.match(/\d+/)
-      let crmId = crmIdMatch ? crmIdMatch[0] : null
-      let house = null
+      try {
+        const bestPhoto = photos[photos.length - 1] 
+        const fileId = bestPhoto.file_id
+        const mediaGroupId = msg.media_group_id
+
+        let crmIdMatch = text.match(/\d+/)
+        let crmId = crmIdMatch ? crmIdMatch[0] : null
+        let house = null
 
       if (crmId) {
         house = await prisma.house.findUnique({ where: { crmId } })
@@ -107,6 +118,9 @@ export async function POST(req: Request) {
               body: JSON.stringify({ chat_id: chatId, text: `❌ Avtomatik yaratishda xato yuz berdi.` })
           })
         }
+      }
+      } finally {
+        release(); // free the queue for the next photo
       }
     } else {
        if (text === "/start") {
