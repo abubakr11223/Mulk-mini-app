@@ -153,10 +153,13 @@ export default function Map() {
       .then((data) => setHouses(data))
   }, [])
 
-  const filteredHouses = houses.filter(h => 
-    h.title.toLowerCase().includes(appliedSearch.toLowerCase()) || 
-    (h.crmId && h.crmId.toString().includes(appliedSearch))
-  )
+  const filteredHouses = houses.filter(h => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return true
+    return h.title.toLowerCase().includes(q) || 
+      (h.crmId && h.crmId.toString().includes(q)) ||
+      (h.landmark && h.landmark.toLowerCase().includes(q))
+  })
 
   // Eng arzon uylar boshida turishi uchun (narx string bo'lgani uchun bo'shliqlarni va valyutani tozalab son qilamiz)
   const sortedHouses = [...filteredHouses].sort((a, b) => {
@@ -231,7 +234,6 @@ export default function Map() {
                 className="bg-transparent border-none outline-none ml-2 w-full text-[13px] font-bold text-gray-900 placeholder-gray-400" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearch}
               />
             </div>
 
@@ -295,7 +297,6 @@ export default function Map() {
                     className="bg-transparent border-none outline-none ml-2 w-full text-[14px] font-bold text-gray-900 placeholder-gray-400" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={handleSearch}
                   />
                 </div>
               </div>
