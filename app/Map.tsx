@@ -321,53 +321,58 @@ export default function Map() {
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
             className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
           >
-            <div className="relative">
+            <div className="relative w-full h-[320px]">
               <button 
                 onClick={() => {
                    setShowDetail(false); 
-                   if (view === "gallery") setSelected(null); // Return clean to gallery
+                   if (view === "gallery") setSelected(null);
                 }} 
-                className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/50 backdrop-blur-md flex justify-center items-center rounded-full text-white active:scale-95 transition-transform"
+                className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/40 backdrop-blur-md flex justify-center items-center rounded-full text-white active:scale-95 transition-transform"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
               </button>
-              <img src={selected.image} className="w-full h-80 object-cover" />
+              <img src={selected.image} className="w-full h-full object-cover" />
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+              
+              <div className="absolute bottom-5 left-5 right-5">
+                 {selected.crmId && <span className="bg-[#FFD600] text-black font-extrabold px-2.5 py-1 rounded-md text-[11px] uppercase tracking-wider mb-2.5 inline-block shadow-md">ID: {selected.crmId}</span>}
+                 <h1 className="text-[26px] font-black text-white leading-tight drop-shadow-lg">{selected.title}</h1>
+              </div>
             </div>
             
-            <div className="p-5 pb-24">
-              <div className="flex justify-between items-start mb-2">
-                <h1 className="text-3xl font-black text-black leading-tight max-w-[70%]">{selected.title}</h1>
-                {selected.crmId && <span className="bg-gray-100 text-gray-500 font-bold px-2 py-1 rounded-md text-[11px] whitespace-nowrap">ID: {selected.crmId}</span>}
-              </div>
-              <p className="text-3xl font-black text-[#FFD600] mb-6 drop-shadow-sm">{selected.price}</p>
+            <div className="p-5 pb-28">
+              <p className="text-3xl font-black text-black mb-6">{selected.price}</p>
               
-              <h3 className="font-bold text-gray-900 mb-3 text-lg">Asosiy xususiyatlar</h3>
-              <div className="grid grid-cols-3 gap-3 mb-8">
-                 <div className="bg-gray-50 p-4 rounded-[16px] border border-gray-100 flex flex-col items-center justify-center shadow-sm">
-                   <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                   <span className="text-gray-400 text-[11px] font-bold uppercase">Xonalar</span>
-                   <span className="font-black text-[16px] text-gray-900 mt-1">{selected.rooms} xona</span>
+              <div className="flex justify-around items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-8 shadow-sm">
+                 <div className="flex flex-col items-center">
+                   <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                   <span className="font-black text-[16px] text-gray-900">{selected.rooms || '—'}</span>
+                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Xona</span>
                  </div>
-                 <div className="bg-gray-50 p-4 rounded-[16px] border border-gray-100 flex flex-col items-center justify-center shadow-sm">
-                   <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                   <span className="text-gray-400 text-[11px] font-bold uppercase">Yuzasi</span>
-                   <span className="font-black text-[16px] text-gray-900 mt-1">{selected.area} m²</span>
+                 <div className="w-px h-10 bg-gray-200"></div>
+                 <div className="flex flex-col items-center">
+                   <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                   <span className="font-black text-[16px] text-gray-900">{selected.area ? \`\${selected.area} m²\` : '—'}</span>
+                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Yuzasi</span>
                  </div>
-                 <div className="bg-gray-50 p-4 rounded-[16px] border border-gray-100 flex flex-col items-center justify-center shadow-sm">
-                   <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                   <span className="text-gray-400 text-[11px] font-bold uppercase">Qavat</span>
-                   <span className="font-black text-[16px] text-gray-900 mt-1">{selected.floor}-qavat</span>
+                 <div className="w-px h-10 bg-gray-200"></div>
+                 <div className="flex flex-col items-center">
+                   <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                   <span className="font-black text-[16px] text-gray-900">{selected.floor || '—'}</span>
+                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Qavat</span>
                  </div>
               </div>
 
-              <h3 className="font-bold text-gray-900 mb-2 text-lg">Ta'rifi</h3>
-              <p className="text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-[16px] border border-gray-100 text-[15px] shadow-sm">
+              <h3 className="font-black text-gray-900 mb-3 text-[18px]">Ta'rifi</h3>
+              <p className="text-gray-600 leading-relaxed text-[15px]">
                 {selected.description}
               </p>
             </div>
 
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-5 z-20">
-              <button className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-[0_8px_20px_rgba(255,214,0,0.3)] active:scale-95 transition-all">
+              <button className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
                 Sotuvchi bilan bog'lanish
               </button>
             </div>
