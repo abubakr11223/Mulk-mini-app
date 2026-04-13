@@ -11,17 +11,24 @@ const PIPELINE_ID = 10512362;
 const STATUS_ID = 85060666; // "Mulk mini app" status
 
 async function fetchLeads(page = 1) {
-  const url = `${BASE_URL}/leads?limit=50&page=${page}&with=custom_fields&filter[pipeline_id]=${PIPELINE_ID}&filter[status_id]=${STATUS_ID}`;
+  // Pipeline bo'yicha filter - status ID ni kodda filtrlaymiz
+  const url = `${BASE_URL}/leads?limit=50&page=${page}&with=custom_fields&filter[pipeline_id][]=${PIPELINE_ID}`;
   const res = await fetch(url, {
     headers: { 'Authorization': `Bearer ${TOKEN}` }
   });
-  if (res.status === 204 || res.status === 404) return null; // No content
+  if (res.status === 204) return null;
   if (!res.ok) {
     console.error(`[SYNC] AmoCRM error: ${res.status}`);
     return null;
   }
-  return res.json();
+  const data = await res.json();
+  // Faqat "Mulk mini app" statusidagi leadlarni qoldir
+  if (data._embedded?.leads) {
+    data._embedded.leads = data._embedded.leads.filter(l => l.status_id === STATUS_ID);
+  }
+  return data;
 }
+
 
 function parseCustomFields(fields) {
   let rooms = null, area = null, floor = null, totalFloors = null;
