@@ -47,12 +47,14 @@ const createClusterIcon = (cluster: any) => {
   })
 }
 
-type House = {
+export type House = {
   id: number
   crmId: string
   lat: number
   lng: number
   price: string
+  oldPrice?: string
+  discount?: number
   hot: boolean
   title: string
   description: string
@@ -340,11 +342,20 @@ export default function Map() {
                     {h.hot && (
                       <span className="absolute top-2 right-2 bg-[#FFD600] text-black text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">TOP</span>
                     )}
+                    {h.discount ? (
+                      <span className="absolute top-2 left-2 bg-red-600 shadow-md border border-red-500/50 text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-0.5">
+                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        -{h.discount}%
+                      </span>
+                    ) : null}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
                     <span className="absolute bottom-2 right-2 text-white font-bold text-[10px] drop-shadow-md">{h.area} m²</span>
                   </div>
                   <div className="p-3">
-                    <p className="font-black text-gray-900 text-[14px] leading-tight mb-1">{h.price}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <p className={`font-black text-[14px] leading-tight ${h.discount ? 'text-red-600' : 'text-gray-900'}`}>{h.price}</p>
+                      {h.oldPrice && <p className="text-gray-400 text-[10px] font-bold line-through pt-[1px]">{h.oldPrice}</p>}
+                    </div>
                     <p className="text-gray-500 text-[11px] font-bold line-clamp-2 leading-snug">{h.title}</p>
                   </div>
                 </div>
