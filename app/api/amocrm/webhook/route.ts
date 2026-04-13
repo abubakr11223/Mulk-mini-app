@@ -24,6 +24,12 @@ export async function POST(req: Request) {
       if (key.match(/leads\[.*\]\[\d+\]\[id\]/)) leadId = value
       if (key.match(/leads\[.*\]\[\d+\]\[price\]/)) price = value
       if (key.match(/leads\[.*\]\[\d+\]\[name\]/)) title = value
+      if (key.match(/leads\[.*\]\[\d+\]\[pipeline_id\]/)) {
+        if (value.toString() !== "10512362") {
+          console.log("[Webhook] Boshqa voronkadagi uy kiritilmadi: ", value);
+          return NextResponse.json({ ok: true })
+        }
+      }
       
       // Parse Custom Fields by name
       if (key.match(/leads\[.*\]\[custom_fields\]\[\d+\]\[name\]/)) {
