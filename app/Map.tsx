@@ -391,16 +391,16 @@ export default function Map() {
                 <div className="relative w-full rounded-[16px] overflow-hidden mb-4 border border-gray-200 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] bg-black">
                   {selected.images && selected.images.length > 0 ? (
                     selected.images.map((img, idx) => (
-                      <div key={idx} className="min-w-full relative snap-center shrink-0 flex items-center justify-center bg-black aspect-[4/3] overflow-hidden">
-                        <img src={img} alt={selected.title} className="w-full h-full object-cover" />
+                      <div key={idx} className="min-w-full relative snap-center shrink-0 flex items-start justify-center">
+                        <img src={img} alt={selected.title} className="w-full h-auto max-h-[400px] object-contain rounded-xl" />
                         <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md z-20 pointer-events-none">
                           {idx + 1} / {selected.images?.length}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="min-w-full relative shrink-0 flex items-center justify-center bg-black aspect-[4/3] overflow-hidden">
-                      <img src={selected.image} alt={selected.title} className="w-full h-full object-cover" />
+                    <div className="min-w-full relative shrink-0 flex items-start justify-center">
+                      <img src={selected.image} alt={selected.title} className="w-full h-auto max-h-[400px] object-contain rounded-xl" />
                     </div>
                   )}
                   {selected.hot && (
