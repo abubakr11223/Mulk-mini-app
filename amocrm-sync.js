@@ -6,45 +6,16 @@ const TOKEN = process.env.AMOCRM_TOKEN;
 const SUBDOMAIN = process.env.AMOCRM_SUBDOMAIN || 'mulk';
 const BASE_URL = `https://${SUBDOMAIN}.amocrm.ru/api/v4`;
 
-const FIELD_MAP = {
-  'xona': 'rooms',
-  'хона': 'rooms',
-  'комнат': 'rooms',
-  'qavat': 'floor',
-  'этаж': 'floor',
-  'floor': 'floor',
-  'qavat soni': 'totalFloors',
-  'umumiy qavat': 'totalFloors',
-  'всего этажей': 'totalFloors',
-  'total floor': 'totalFloors',
-  'yuzasi': 'area',
-  'maydon': 'area',
-  'sotix': 'area',
-  'площадь': 'area',
-  'kv.m': 'area',
-  'описание': 'description',
-  'izoh': 'description',
-  'район': 'landmark',
-  'tuman': 'landmark',
-  'joy': 'landmark',
-  'novostrоyka': 'buildingType',
-  'bino turi': 'buildingType',
-  'тип здания': 'buildingType',
-  'bino': 'buildingType',
-};
-
-function mapField(fieldName) {
-  const lower = fieldName.toLowerCase();
-  for (const [key, val] of Object.entries(FIELD_MAP)) {
-    if (lower.includes(key)) return val;
-  }
-  return null;
-}
+// Faqat "Mulk mini app" ustunidagi leadlarni ol
+const PIPELINE_ID = 10512362;
+const STATUS_ID = 85060666; // "Mulk mini app" status
 
 async function fetchLeads(page = 1) {
-  const res = await fetch(`${BASE_URL}/leads?limit=50&page=${page}&with=custom_fields`, {
+  const url = `${BASE_URL}/leads?limit=50&page=${page}&with=custom_fields&filter[pipeline_id]=${PIPELINE_ID}&filter[status_id]=${STATUS_ID}`;
+  const res = await fetch(url, {
     headers: { 'Authorization': `Bearer ${TOKEN}` }
   });
+  if (res.status === 204 || res.status === 404) return null; // No content
   if (!res.ok) {
     console.error(`[SYNC] AmoCRM error: ${res.status}`);
     return null;
@@ -52,14 +23,65 @@ async function fetchLeads(page = 1) {
   return res.json();
 }
 
-async function syncAllLeads() {
-  console.log(`[SYNC] ${new Date().toISOString()} — AmoCRM sync boshlandi...`);
+function parseCustomFields(fields) {
+  let rooms = null, area = null, floor = null, totalFloors = null;
+  let description = '', landmark = '', buildingType = '';
+
+  if (!fields) return { rooms, area, floor, totalFloors, description, landmark, buildingType };
+
+  const FIELD_MAP = {
+    'xona': 'rooms', 'хона': 'rooms', 'комнат': 'rooms',
+    'qavat': 'floor', 'этаж': 'floor', 'floor': 'floor',
+    'umumiy qavat': 'totalFloors', 'всего этажей': 'totalFloors',
+    'yuzasi': 'area', 'maydon': 'area', 'sotix': 'area', 'площадь': 'area', 'кв.м': 'area',
+    'описание': 'description', 'izoh': 'description',
+    'район': 'landmark', 'tuman': 'landmark',
+    'bino turi': 'buildingType', 'тип': 'buildingType',
+  };
+
+  for (const cf of fields) {
+    const name = (cf.field_name || '').toLowerCase();
+    const value = cf.values?.[0]?.value;
+    if (!value) continue;
+
+    let mappedKey = null;
+    for (const [key, val] of Object.entries(FIELD_MAP)) {
+      if (name.includes(key)) { mappedKey = val; break; }
+    }
+    if (!mappedKey) continue;
+
+    if (mappedKey === 'rooms') {
+      const v = parseInt(String(value).replace(/\D/g, ''));
+      rooms = (!isNaN(v) && v > 0 && v < 50) ? v : null;
+    } else if (mappedKey === 'area') {
+      const v = parseFloat(String(value).replace(/[^\d.]/g, ''));
+      area = (!isNaN(v) && v > 0 && v < 5000) ? v : null;
+    } else if (mappedKey === 'floor') {
+      const v = parseInt(String(value).replace(/\D/g, ''));
+      floor = (!isNaN(v) && v > 0 && v < 150) ? v : null;
+    } else if (mappedKey === 'totalFloors') {
+      const v = parseInt(String(value).replace(/\D/g, ''));
+      totalFloors = (!isNaN(v) && v > 0 && v < 150) ? v : null;
+    } else if (mappedKey === 'description') {
+      description = String(value);
+    } else if (mappedKey === 'landmark') {
+      landmark = String(value);
+    } else if (mappedKey === 'buildingType') {
+      buildingType = String(value);
+    }
+  }
+
+  return { rooms, area, floor, totalFloors, description, landmark, buildingType };
+}
+
+async function syncLeads() {
+  console.log(`[SYNC] ${new Date().toISOString()} — "Mulk mini app" statusidagi leadlar yangilanmoqda...`);
   let page = 1;
   let totalSynced = 0;
 
   while (true) {
     const data = await fetchLeads(page);
-    if (!data || !data._embedded || !data._embedded.leads.length) break;
+    if (!data || !data._embedded?.leads?.length) break;
 
     const leads = data._embedded.leads;
 
@@ -67,42 +89,14 @@ async function syncAllLeads() {
       const crmId = String(lead.id);
       const title = lead.name || 'Yangi Mulk';
       const rawPrice = lead.price || 0;
-      const price = rawPrice > 0 ? `${rawPrice.toLocaleString()} $` : 'Kelishilgan';
+      const price = rawPrice > 0 ? `${Number(rawPrice).toLocaleString()} $` : 'Kelishilgan';
 
-      // Parse custom fields
-      let rooms = null, area = null, floor = null, totalFloors = null;
-      let description = '', landmark = '', buildingType = '';
-
-      if (lead.custom_fields_values) {
-        for (const cf of lead.custom_fields_values) {
-          const mapped = mapField(cf.field_name || '');
-          const value = cf.values?.[0]?.value;
-          if (!mapped || !value) continue;
-
-          if (mapped === 'rooms') {
-            const v = parseInt(String(value).replace(/\D/g, ''));
-            rooms = (!isNaN(v) && v > 0 && v < 100) ? v : null;
-          } else if (mapped === 'area') {
-            const v = parseInt(String(value).replace(/\D/g, ''));
-            area = (!isNaN(v) && v > 0 && v < 10000) ? v : null;
-          } else if (mapped === 'floor') {
-            const v = parseInt(String(value).replace(/\D/g, ''));
-            floor = (!isNaN(v) && v > 0 && v < 200) ? v : null;
-          } else if (mapped === 'totalFloors') {
-            const v = parseInt(String(value).replace(/\D/g, ''));
-            totalFloors = (!isNaN(v) && v > 0 && v < 200) ? v : null;
-          }
-          else if (mapped === 'description') description = String(value);
-          else if (mapped === 'landmark') landmark = String(value);
-          else if (mapped === 'buildingType') buildingType = String(value);
-        }
-      }
-
-      const existing = await prisma.house.findUnique({ where: { crmId } });
+      const { rooms, area, floor, totalFloors, description, landmark, buildingType } =
+        parseCustomFields(lead.custom_fields_values);
 
       const updateData = {
+        price, // Narx har doim yangilanadi!
         title,
-        price,
         ...(rooms !== null ? { rooms } : {}),
         ...(area !== null ? { area } : {}),
         ...(floor !== null ? { floor } : {}),
@@ -116,15 +110,15 @@ async function syncAllLeads() {
         crmId,
         title,
         price,
-        lat: 41.311081 + (Math.random() * 0.05),
-        lng: 69.240562 + (Math.random() * 0.05),
+        lat: 41.311081 + (Math.random() * 0.06),
+        lng: 69.240562 + (Math.random() * 0.06),
         rooms: rooms || 0,
         area: area || 0,
         floor: floor || 1,
         totalFloors: totalFloors || 1,
         description: description || '',
         landmark: landmark || '',
-        buildingType: buildingType || '',
+        buildingType: buildingType || 'Novostroyka',
       };
 
       await prisma.house.upsert({
@@ -136,20 +130,19 @@ async function syncAllLeads() {
       totalSynced++;
     }
 
-    // Check if there's a next page
     if (!data._links?.next) break;
     page++;
   }
 
-  console.log(`[SYNC] Tayyor! ${totalSynced} ta lead yangilandi.`);
+  console.log(`[SYNC] Tayyor! ${totalSynced} ta "Mulk mini app" leid yangilandi.`);
 }
 
-// Run immediately on start
-syncAllLeads().catch(console.error);
+// Darhol ishla
+syncLeads().catch(console.error);
 
-// Then every 5 minutes
+// Har 5 daqiqada qayta ishla
 setInterval(() => {
-  syncAllLeads().catch(console.error);
+  syncLeads().catch(console.error);
 }, 5 * 60 * 1000);
 
-console.log('[SYNC] AmoCRM Sync dasturi ishga tushdi. Har 5 daqiqada yangilanadi.');
+console.log('[SYNC] Ishga tushdi. Har 5 daqiqada "Mulk mini app" statusidan avtosync qiladi.');
