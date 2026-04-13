@@ -412,19 +412,19 @@ export default function Map() {
                  <div className="flex flex-col items-center">
                    <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                    <span className="font-black text-[16px] text-gray-900">{selected.rooms || '—'}</span>
-                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Xona</span>
+                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.room}</span>
                  </div>
                  <div className="w-px h-10 bg-gray-200"></div>
                  <div className="flex flex-col items-center">
                    <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
                    <span className="font-black text-[16px] text-gray-900">{selected.area ? selected.area + " m²" : '—'}</span>
-                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Yuzasi</span>
+                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.area}</span>
                  </div>
                  <div className="w-px h-10 bg-gray-200"></div>
                  <div className="flex flex-col items-center">
                    <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                    <span className="font-black text-[16px] text-gray-900">{selected.floor ? selected.floor + "/" + (selected.totalFloors || '—') : '—'}</span>
-                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Qavat</span>
+                   <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.floor}</span>
                  </div>
               </div>
 
@@ -432,29 +432,32 @@ export default function Map() {
               <div className="flex flex-col gap-1 mb-8 px-2">
                 {selected.buildingType && (
                   <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-gray-500 font-bold text-[14px]">Bino turi</span>
+                    <span className="text-gray-500 font-bold text-[14px]">{t.bType}</span>
                     <span className="text-black font-black text-[15px]">{selected.buildingType}</span>
                   </div>
                 )}
                 {selected.landmark && (
                   <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-gray-500 font-bold text-[14px]">Mo'ljal (Orientir)</span>
+                    <span className="text-gray-500 font-bold text-[14px]">{t.landmark}</span>
                     <span className="text-black font-black text-[15px]">{selected.landmark}</span>
                   </div>
                 )}
               </div>
 
-              <h3 className="font-black text-gray-900 mb-3 text-[18px]">Ta'rifi</h3>
+              <h3 className="font-black text-gray-900 mb-3 text-[18px]">{t.desc}</h3>
               <p className="text-gray-600 leading-relaxed text-[15px]">
                 {selected.description}
               </p>
             </div>
 
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-5 z-20">
-              <button className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-2">
+              <a 
+                href="tel:+998909059990" 
+                className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-2"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                Sotuvchi bilan bog'lanish
-              </button>
+                {t.call} (+998 90 905 99 90)
+              </a>
             </div>
           </motion.div>
         )}
@@ -471,7 +474,7 @@ export default function Map() {
             className="absolute inset-0 z-[4000] bg-white overflow-y-auto"
           >
             <div className="sticky top-0 bg-white/90 backdrop-blur-xl px-5 py-4 flex items-center justify-between border-b border-gray-100 z-10">
-              <h2 className="text-2xl font-black text-black">Filtrlar</h2>
+              <h2 className="text-2xl font-black text-black">{t.filter}</h2>
               <button onClick={() => setIsFilterOpen(false)} className="bg-gray-100 p-2.5 rounded-full text-gray-800 active:scale-95">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path>
