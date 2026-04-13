@@ -60,6 +60,9 @@ type House = {
   rooms: number
   area: number
   floor: number
+  totalFloors?: number
+  buildingType?: string
+  landmark?: string
 }
 
 function FlyToMarker({ selected }: { selected: House | null }) {
@@ -359,9 +362,25 @@ export default function Map() {
                  <div className="w-px h-10 bg-gray-200"></div>
                  <div className="flex flex-col items-center">
                    <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                   <span className="font-black text-[16px] text-gray-900">{selected.floor || '—'}</span>
+                   <span className="font-black text-[16px] text-gray-900">{selected.floor ? `${selected.floor}/${selected.totalFloors || '—'}` : '—'}</span>
                    <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">Qavat</span>
                  </div>
+              </div>
+
+              {/* Qo'shimcha CRM maydonlari */}
+              <div className="flex flex-col gap-1 mb-8 px-2">
+                {selected.buildingType && (
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                    <span className="text-gray-500 font-bold text-[14px]">Bino turi</span>
+                    <span className="text-black font-black text-[15px]">{selected.buildingType}</span>
+                  </div>
+                )}
+                {selected.landmark && (
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                    <span className="text-gray-500 font-bold text-[14px]">Mo'ljal (Orientir)</span>
+                    <span className="text-black font-black text-[15px]">{selected.landmark}</span>
+                  </div>
+                )}
               </div>
 
               <h3 className="font-black text-gray-900 mb-3 text-[18px]">Ta'rifi</h3>
