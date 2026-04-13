@@ -80,7 +80,61 @@ function FlyToMarker({ selected }: { selected: House | null }) {
   return null
 }
 
+const TRANSLATIONS = {
+  uz: {
+    gallery: "Galereya",
+    map: "Xarita",
+    call: "Sotuvchi bilan bog'lanish",
+    filter: "Filtrlar",
+    room: "Xonalar",
+    area: "Yuzasi",
+    floor: "Qavat",
+    bType: "Bino turi",
+    landmark: "Mo'ljal (Orientir)",
+    desc: "Ta'rifi",
+    search: "Qidirish (Enter bosing)...",
+    latest: "Sotuvdagi e'lonlar",
+    NotFound: "Hech narsa topilmadi",
+    mainSpec: "Asosiy xususiyatlar",
+  },
+  ru: {
+    gallery: "Галерея",
+    map: "Карта",
+    call: "Связаться с продавцом",
+    filter: "Фильтры",
+    room: "Комнаты",
+    area: "Площадь",
+    floor: "Этаж",
+    bType: "Тип здания",
+    landmark: "Ориентир",
+    desc: "Описание",
+    search: "Поиск (Enter)...",
+    latest: "Объявления о продаже",
+    NotFound: "Ничего не найдено",
+    mainSpec: "Основные характеристики",
+  },
+  en: {
+    gallery: "Gallery",
+    map: "Map",
+    call: "Contact Seller",
+    filter: "Filters",
+    room: "Rooms",
+    area: "Area",
+    floor: "Floor",
+    bType: "Building Type",
+    landmark: "Landmark",
+    desc: "Description",
+    search: "Search (Press Enter)...",
+    latest: "Listings for sale",
+    NotFound: "Nothing found",
+    mainSpec: "Main features",
+  }
+}
+
 export default function Map() {
+  const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
+  const t = TRANSLATIONS[lang]
+  
   const [houses, setHouses] = useState<House[]>([])
   const [selected, setSelected] = useState<House | null>(null)
   
@@ -200,6 +254,13 @@ export default function Map() {
                   <svg className="w-4 h-4 text-[#E1306C]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm3.98-10.822a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
                   <span className="text-[12px] font-bold text-gray-800">@mulk_invest</span>
                 </a>
+
+                {/* Language Switcher */}
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-[10px]">
+                  <button onClick={() => setLang('uz')} className={`px-2.5 py-1 text-[11px] font-black rounded-md transition-all ${lang==='uz'?'bg-white shadow-sm text-black':'text-gray-400'}`}>UZ</button>
+                  <button onClick={() => setLang('ru')} className={`px-2.5 py-1 text-[11px] font-black rounded-md transition-all ${lang==='ru'?'bg-white shadow-sm text-black':'text-gray-400'}`}>RU</button>
+                  <button onClick={() => setLang('en')} className={`px-2.5 py-1 text-[11px] font-black rounded-md transition-all ${lang==='en'?'bg-white shadow-sm text-black':'text-gray-400'}`}>EN</button>
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -207,7 +268,7 @@ export default function Map() {
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
                   <input 
                     type="text" 
-                    placeholder="Qidirish (Enter bosing)..." 
+                    placeholder={t.search}
                     className="bg-transparent border-none outline-none ml-2 w-full text-[14px] font-bold text-gray-900 placeholder-gray-400" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -219,19 +280,19 @@ export default function Map() {
               <div className="flex gap-1.5 w-full pt-1">
                 <button className="flex-1 bg-[#FFD600] text-black font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 shadow-sm border border-yellow-400">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"/></svg>
-                  Galereya
+                  {t.gallery}
                 </button>
                 <button onClick={() => setView("map")} className="flex-1 bg-gray-100 text-gray-800 font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 border border-gray-200 active:bg-gray-200 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                  Xarita
+                  {t.map}
                 </button>
                 <button onClick={() => setIsFilterOpen(true)} className="flex-[0.8] bg-gray-100 text-gray-800 font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 border border-gray-200 active:bg-gray-200 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-                  Filtrlar
+                  {t.filter}
                 </button>
               </div>
               <div className="flex border-b border-gray-100 pb-0 mt-1">
-                <span className="text-[#FFD600] font-black text-[14px] border-b-[3px] border-[#FFD600] pb-2 px-1 rounded-t-sm">Sotuvdagi e'lonlar</span>
+                <span className="text-[#FFD600] font-black text-[14px] border-b-[3px] border-[#FFD600] pb-2 px-1 rounded-t-sm">{t.latest}</span>
               </div>
             </div>
 
