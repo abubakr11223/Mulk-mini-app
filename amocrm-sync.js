@@ -87,8 +87,15 @@ async function syncLeads() {
   let totalSynced = 0;
 
   while (true) {
-    // Filter qo'llanmasdan to'g'ridan pipeline dan olamiz
-    const url = `${BASE_URL}/leads?limit=50&page=${page}&with=custom_fields&filter[pipeline_id][]=${PIPELINE_ID}`;
+    // To'g'ri AmoCRM filter sintaksisi: filter[statuses][0][pipeline_id] va filter[statuses][0][status_id]
+    const params = new URLSearchParams({
+      limit: 50,
+      page: page,
+      with: 'custom_fields',
+      'filter[statuses][0][pipeline_id]': PIPELINE_ID,
+      'filter[statuses][0][status_id]': STATUS_ID,
+    });
+    const url = `${BASE_URL}/leads?${params.toString()}`;
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
     
     if (res.status === 204) break;
@@ -98,14 +105,13 @@ async function syncLeads() {
     }
     
     const data = await res.json();
-    const allLeads = data._embedded?.leads || [];
-    if (!allLeads.length) break; // API da lead qolmadi
+    const leads = data._embedded?.leads || [];
+    if (!leads.length) break;
 
-    // Faqat "Mulk mini app" statusidagi leadlarni filtrlaymiz
-    const leads = allLeads.filter(l => l.status_id === STATUS_ID);
-    console.log(`[SYNC] Page ${page}: ${allLeads.length} lead ichidan ${leads.length} ta "Mulk mini app" topildi`);
+    console.log(`[SYNC] Page ${page}: ${leads.length} ta "Mulk mini app" leid topildi`);
 
     for (const lead of leads) {
+
       const crmId = String(lead.id);
       const title = lead.name || 'Yangi Mulk';
       const rawPrice = lead.price || 0;
