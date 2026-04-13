@@ -388,19 +388,19 @@ export default function Map() {
             >
               <div className="max-w-md mx-auto relative px-1">
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
-                <div className="relative w-full h-[250px] rounded-[16px] overflow-hidden mb-4 border border-gray-100 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] bg-gray-100">
+                <div className="relative w-full rounded-[16px] overflow-hidden mb-4 border border-gray-200 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] bg-black">
                   {selected.images && selected.images.length > 0 ? (
                     selected.images.map((img, idx) => (
-                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
-                        <img src={img} alt={selected.title} className="object-cover w-full h-full" />
+                      <div key={idx} className="min-w-full relative snap-center shrink-0 flex items-center justify-center">
+                        <img src={img} alt={selected.title} className="w-full max-h-[300px] h-auto object-contain" />
                         <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md z-20 pointer-events-none">
                           {idx + 1} / {selected.images?.length}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="min-w-full h-full shrink-0 relative">
-                      <img src={selected.image} alt={selected.title} className="object-cover w-full h-full" />
+                    <div className="min-w-full relative shrink-0 flex items-center justify-center">
+                      <img src={selected.image} alt={selected.title} className="w-full max-h-[300px] h-auto object-contain" />
                     </div>
                   )}
                   {selected.hot && (
@@ -441,20 +441,20 @@ export default function Map() {
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
             className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
           >
-            <div className="relative w-full aspect-[4/5] bg-gray-100">
-              <div className="flex overflow-x-auto snap-x snap-mandatory h-full w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="relative w-full bg-black">
+              <div className="flex overflow-x-auto snap-x snap-mandatory w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-center">
                 {selected.images && selected.images.length > 0 ? (
                   selected.images.map((img, idx) => (
-                    <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
-                      <img src={img} className="object-cover w-full h-full" />
+                    <div key={idx} className="min-w-full relative snap-center shrink-0 flex items-center justify-center">
+                      <img src={img} className="w-full h-auto max-h-[600px] object-contain" />
                       <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md z-20 pointer-events-none shadow-md border border-white/20">
                         {idx + 1} / {selected.images?.length}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="min-w-full h-full relative border-0 shrink-0">
-                    <img src={selected.image} className="object-cover w-full h-full" />
+                  <div className="min-w-full relative shrink-0 flex items-center justify-center">
+                    <img src={selected.image} className="w-full h-auto max-h-[600px] object-contain" />
                   </div>
                 )}
               </div>
@@ -468,11 +468,11 @@ export default function Map() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
               </button>
               
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-              
-              <div className="absolute bottom-5 left-5 right-5">
-                 {selected.crmId && <span className="bg-[#FFD600] text-black font-extrabold px-2.5 py-1 rounded-md text-[11px] uppercase tracking-wider mb-2.5 inline-block shadow-md">ID: {selected.crmId}</span>}
-                 <h1 className="text-[26px] font-black text-white leading-tight drop-shadow-lg">{selected.title}</h1>
+              <div className="absolute bottom-0 left-0 right-0 p-5 pt-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none flex flex-col justify-end">
+                 <div>
+                   {selected.crmId && <span className="bg-[#FFD600] text-black font-extrabold px-2.5 py-1 rounded-md text-[11px] uppercase tracking-wider mb-2.5 inline-block shadow-md pointer-events-auto">ID: {selected.crmId}</span>}
+                 </div>
+                 <h1 className="text-[26px] font-black text-white leading-tight drop-shadow-lg pointer-events-auto">{selected.title}</h1>
               </div>
             </div>
             
