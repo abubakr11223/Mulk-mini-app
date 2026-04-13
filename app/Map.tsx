@@ -91,7 +91,7 @@ export default function Map() {
   const [showDetail, setShowDetail] = useState(false)
 
   useEffect(() => {
-    fetch("/api/houses?north=41.6&south=41.0&east=69.6&west=68.8")
+    fetch(\`/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=\${Date.now()}\`)
       .then((res) => res.json())
       .then((data) => setHouses(data))
   }, [])
