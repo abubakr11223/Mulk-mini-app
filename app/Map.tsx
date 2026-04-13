@@ -24,53 +24,22 @@ L.Icon.Default.mergeOptions({
     "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 })
 
-// 🔥 PRICE ICON
 const createPriceIcon = (price: string, hot: boolean) =>
   L.divIcon({
     html: `
-      <div style="
-        position: relative;
-        transform: translate(-50%, -100%);
-        background: ${hot ? "#ef4444" : "#FFD600"};
-        color: #000;
-        padding: 6px 10px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 700;
-        white-space: nowrap;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-      ">
+      <div class="relative -translate-x-1/2 -translate-y-full px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-transform duration-300 hover:scale-105 ${hot ? 'bg-[#ff3b30] text-white' : 'bg-[#1c1c1e] text-white'} border-[3px] border-white">
         ${price}
-        <div style="
-          position: absolute;
-          bottom: -6px;
-          left: 50%;
-          transform: translateX(-50%);
-          border-left: 6px solid transparent;
-          border-right: 6px solid transparent;
-          border-top: 6px solid ${hot ? "#ef4444" : "#FFD600"};
-        "></div>
+        <div class="absolute -bottom-2.5 left-1/2 -translate-x-1/2 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] ${hot ? 'border-t-[#ff3b30]' : 'border-t-[#1c1c1e]'}"></div>
       </div>
     `,
     className: "",
   })
 
-// 🔥 CLUSTER ICON
 const createClusterIcon = (cluster: any) => {
   const count = cluster.getChildCount()
   return L.divIcon({
     html: `
-      <div style="
-        background:#16a34a;
-        color:white;
-        width:40px;
-        height:40px;
-        border-radius:50%;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-weight:700;
-      ">
+      <div class="bg-[#1c1c1e]/90 backdrop-blur-md text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-xl border-4 border-white">
         ${count}
       </div>
     `,
@@ -84,16 +53,20 @@ type House = {
   lng: number
   price: string
   hot: boolean
+  title: string
+  description: string
+  image: string
 }
 
-// 🔥 ZOOM
 function FlyToMarker({ selected }: { selected: House | null }) {
   const map = useMap()
 
   useEffect(() => {
     if (selected) {
-      map.flyTo([selected.lat, selected.lng], 16, {
-        duration: 0.5,
+      // Offset center slightly to leave room for the bottom sheet
+      map.flyTo([selected.lat - 0.007, selected.lng], 15, {
+        duration: 0.8,
+        easeLinearity: 0.25,
       })
     }
   }, [selected])
@@ -112,40 +85,34 @@ export default function Map() {
   }, [])
 
   return (
-    <>
-      {/* 🔥 TOP BAR */}
-      <div
-        style={{
-          position: "fixed",
-          top: 20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 1000,
-          background: "white",
-          padding: "10px 16px",
-          borderRadius: "20px",
-          fontWeight: "600",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        }}
-      >
-        🏠 Mulk Invest — Rieltor panel
+    <div className="relative h-screen w-full overflow-hidden bg-[#f2f2f7]">
+      {/* TOP HEADER */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[92%] max-w-sm rounded-[24px] bg-white/70 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-white/60 p-2 pl-5 flex items-center justify-between">
+        <h1 className="font-bold text-[#1c1c1e] tracking-tight text-lg">Mulk Invest</h1>
+        <span className="text-[11px] font-bold bg-[#1c1c1e] text-white px-3 py-1.5 rounded-full uppercase tracking-wider">
+          Rieltor yopiq bazasi
+        </span>
       </div>
 
       {/* MAP */}
-      <div style={{ height: "100vh", width: "100%" }}>
+      <div className="h-full w-full">
         <MapContainer
           center={[41.2995, 69.2401]}
           zoom={13}
-          minZoom={11}
+          zoomControl={false}
+          minZoom={12}
           maxZoom={18}
           maxBounds={[
             [41.0, 68.8],
             [41.6, 69.6],
           ]}
           maxBoundsViscosity={1.0}
-          style={{ height: "100%", width: "100%" }}
+          className="h-full w-full"
         >
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
+          {/* Voyager basemap for cleaner map UI */}
+          <TileLayer 
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" 
+          />
 
           <FlyToMarker selected={selected} />
 
@@ -164,47 +131,84 @@ export default function Map() {
         </MapContainer>
       </div>
 
-      {/* 🔥 BOTTOM CARD */}
+      {/* BOTTOM SHEET / CARD */}
       <AnimatePresence>
         {selected && (
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            drag="y"
-            onDragEnd={(e, info) => {
-              if (info.offset.y > 120) setSelected(null)
-            }}
-            style={{
-              position: "fixed",
-              bottom: 0,
-              left: 0,
-              width: "100%",
-              background: "white",
-              borderTopLeftRadius: "20px",
-              borderTopRightRadius: "20px",
-              padding: "16px",
-              boxShadow: "0 -4px 20px rgba(0,0,0,0.2)",
-            }}
-          >
-            <div
-              style={{
-                width: "40px",
-                height: "4px",
-                background: "#ccc",
-                borderRadius: "10px",
-                margin: "0 auto 10px",
-              }}
+          <>
+            {/* Backdrop to dull the map */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelected(null)}
+              className="absolute inset-0 z-[999] bg-[#1c1c1e]/10 backdrop-blur-[2px]"
             />
+            
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100) setSelected(null)
+              }}
+              // Make sure z-[1000] puts it above map
+              className="absolute bottom-0 left-0 w-full z-[1000] bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgb(0,0,0,0.15)] pb-10 pt-3 px-4 md:px-0"
+            >
+              <div className="max-w-md mx-auto relative px-1">
+                {/* Drag handle */}
+                <div className="w-14 h-1.5 bg-gray-300 rounded-full mx-auto mb-5 cursor-grab active:cursor-grabbing" />
+                
+                {/* Image Section */}
+                <div className="relative w-full h-[240px] rounded-[24px] overflow-hidden mb-5 shadow-sm group">
+                  {selected.image ? (
+                    <img
+                      src={selected.image}
+                      alt={selected.title}
+                      className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 animate-pulse" />
+                  )}
 
-            <h2 style={{ fontWeight: "700" }}>{selected.price}</h2>
+                  {/* Gradient shadow for text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
 
-            <p style={{ color: "#666" }}>
-              {selected.hot ? "🔥 Tez sotiladi" : "Oddiy uy"}
-            </p>
-          </motion.div>
+                  {selected.hot && (
+                    <div className="absolute top-4 left-4 bg-[#ff3b30] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1 backdrop-blur-md">
+                      🔥 Tez sotiladi
+                    </div>
+                  )}
+
+                  {/* Title overlay */}
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <h2 className="text-xl font-bold text-white leading-tight drop-shadow-md">{selected.title}</h2>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="mb-6 px-1">
+                  <p className="text-[#8e8e93] text-[15px] line-clamp-2 leading-relaxed">{selected.description}</p>
+                </div>
+                
+                {/* Bottom Stats & Button */}
+                <div className="flex justify-between items-center px-1">
+                  <div>
+                    <p className="text-[11px] text-[#8e8e93] font-bold uppercase tracking-wider mb-1">So'ralayotgan narx</p>
+                    <p className="text-3xl font-black text-[#1c1c1e] tracking-tight">{selected.price}</p>
+                  </div>
+                  <button className="bg-[#007aff] hover:bg-[#0056b3] text-white font-bold py-3.5 px-7 rounded-[18px] shadow-[0_8px_20px_rgb(0,122,255,0.3)] active:scale-95 transition-all text-[15px]">
+                    Ko'rish
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
-    </>
+    </div>
   )
 }

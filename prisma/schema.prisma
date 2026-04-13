@@ -8,10 +8,13 @@ datasource db {
 }
 
 model House {
-  id        Int      @id @default(autoincrement())
-  lat       Float
-  lng       Float
-  price     String
-  hot       Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  lat         Float
+  lng         Float
+  price       String
+  hot         Boolean  @default(false)
+  image       String   @default("https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80")
+  title       String   @default("Mulk")
+  description String   @default("Rieltorlar uchun maxsus yopiq mulk.")
+  createdAt   DateTime @default(now())
 }
