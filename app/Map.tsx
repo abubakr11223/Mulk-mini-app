@@ -357,7 +357,12 @@ export default function Map() {
                       <p className={`font-black text-[14px] leading-tight ${h.discount ? 'text-red-600' : 'text-gray-900'}`}>{h.price}</p>
                       {h.oldPrice && <p className="text-gray-400 text-[10px] font-bold line-through pt-[1px]">{h.oldPrice}</p>}
                     </div>
-                    <p className="text-gray-500 text-[11px] font-bold line-clamp-2 leading-snug">{h.title}</p>
+                    <p className="text-gray-900 text-[12px] font-bold leading-snug line-clamp-1 mb-1">{h.title}</p>
+                    
+                    <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-gray-500 font-medium line-clamp-2">
+                      {h.landmark && <p className="flex items-center gap-1 text-gray-600">Location: {h.landmark}</p>}
+                      {h.description && <p className="line-clamp-1">{h.description}</p>}
+                    </div>
                   </div>
                 </div>
               ))}
