@@ -392,7 +392,7 @@ export default function Map() {
                   {selected.images && selected.images.length > 0 ? (
                     selected.images.map((img, idx) => (
                       <div key={idx} className="min-w-full relative snap-center shrink-0 flex items-start justify-center">
-                        <img src={img} alt={selected.title} className="w-full h-auto max-h-[400px] object-contain rounded-xl" />
+                        <img src={img} alt={selected.title} className="w-full h-64 object-cover rounded-xl" />
                         <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md z-20 pointer-events-none">
                           {idx + 1} / {selected.images?.length}
                         </div>
@@ -400,7 +400,7 @@ export default function Map() {
                     ))
                   ) : (
                     <div className="min-w-full relative shrink-0 flex items-start justify-center">
-                      <img src={selected.image} alt={selected.title} className="w-full h-auto max-h-[400px] object-contain rounded-xl" />
+                      <img src={selected.image} alt={selected.title} className="w-full h-64 object-cover rounded-xl" />
                     </div>
                   )}
                   {selected.hot && (
