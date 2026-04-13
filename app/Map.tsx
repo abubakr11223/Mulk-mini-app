@@ -80,15 +80,65 @@ function FlyToMarker({ selected }: { selected: House | null }) {
   return null
 }
 
+const TRANSLATIONS = {
+  uz: {
+    gallery: "Galereya",
+    map: "Xarita",
+    call: "Sotuvchi bilan bog'lanish",
+    back: "Orqaga",
+    filter: "Filtrlar",
+    room: "Xonalar",
+    area: "Yuzasi",
+    floor: "Qavat",
+    bType: "Bino turi",
+    landmark: "Mo'ljal (Orientir)",
+    desc: "Ta'rifi",
+    search: "Qidiruv (Tuman yoki ID)...",
+    sortCheap: "Eng arzon uylar",
+    sortExp: "Eng qimmat uylar",
+    NotFound: "Hech narsa topilmadi",
+  },
+  ru: {
+    gallery: "Галерея",
+    map: "Карта",
+    call: "Связаться с продавцом",
+    back: "Назад",
+    filter: "Фильтры",
+    room: "Комнаты",
+    area: "Площадь",
+    floor: "Этаж",
+    bType: "Тип здания",
+    landmark: "Ориентир",
+    desc: "Описание",
+    search: "Поиск (Район или ID)...",
+    sortCheap: "Сначала дешевые",
+    sortExp: "Сначала дорогие",
+    NotFound: "Ничего не найдено",
+  },
+  en: {
+    gallery: "Gallery",
+    map: "Map",
+    call: "Contact Seller",
+    back: "Back",
+    filter: "Filters",
+    room: "Rooms",
+    area: "Area",
+    floor: "Floor",
+    bType: "Building Type",
+    landmark: "Landmark",
+    desc: "Description",
+    search: "Search (District or ID)...",
+    sortCheap: "Cheapest first",
+    sortExp: "Expensive first",
+    NotFound: "Nothing found",
+  }
+}
+
 export default function Map() {
+  const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
+  const t = TRANSLATIONS[lang]
+
   const [houses, setHouses] = useState<House[]>([])
-  const [selected, setSelected] = useState<House | null>(null)
-  
-  const [view, setView] = useState<"gallery" | "map">("gallery")
-  const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [appliedSearch, setAppliedSearch] = useState("")
-  const [showDetail, setShowDetail] = useState(false)
 
   useEffect(() => {
     fetch("/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=" + Date.now())
