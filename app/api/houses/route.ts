@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { prisma } from "../../../lib/prisma"
 
+export const dynamic = 'force-dynamic' // Force Next.js not to cache
+export const revalidate = 0
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
 

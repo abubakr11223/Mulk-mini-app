@@ -20,5 +20,8 @@ model House {
   rooms       Int      @default(0)
   area        Float    @default(0)
   floor       Int      @default(0)
+  totalFloors Int      @default(0)
+  buildingType String  @default("Novostroyka")
+  landmark    String   @default("")
   createdAt   DateTime @default(now())
 }
