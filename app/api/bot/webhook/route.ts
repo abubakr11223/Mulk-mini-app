@@ -35,7 +35,7 @@ export async function POST(req: Request) {
             chat_id: chatId,
             text: "Assalomu alaykum! Mulk qidirish uchun ilovaga kiring 👇",
             reply_markup: {
-              inline_keyboard: [[{ text: "🏠 Ilovaga kirish", web_app: { url: "https://mulk.77.37.54.250.nip.io" } }]]
+              inline_keyboard: [[{ text: "🏠 Ilovaga kirish", web_app: { url: "https://surgery-pretty-seasonal-maritime.trycloudflare.com" } }]]
             }
           })
         })
@@ -97,12 +97,18 @@ export async function POST(req: Request) {
         release();
       }
     } else {
-       if (text === "/start") {
-           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, text: `Admin Xush kelibsiz!\n\nRasmlarni 4 ta qilib bitta guruh (album) holida jo'nating va *IZOH* (Caption) ga aynan CRM dagi ID raqamini qo'shib yuboring! Masalan: 1102` })
-           })
-       }
+        if (text === "/start") {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+               method: "POST", headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ 
+                 chat_id: chatId, 
+                 text: `Admin Xush kelibsiz!\n\nRasmlarni 4 ta qilib bitta guruh (album) holida jo'nating va *IZOH* (Caption) ga aynan CRM dagi ID raqamini qo'shib yuboring! Masalan: 1102`,
+                 reply_markup: {
+                   inline_keyboard: [[{ text: "🏠 Ilovaga kirish", web_app: { url: "https://surgery-pretty-seasonal-maritime.trycloudflare.com" } }]]
+                 }
+               })
+            })
+        }
     }
 
     return NextResponse.json({ ok: true })

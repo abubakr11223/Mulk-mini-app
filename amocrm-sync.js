@@ -160,6 +160,41 @@ async function syncLeads() {
     page++;
   }
 
+  // --- CLEANUP LOGIC ---
+  // Hozirgi "Mulk mini app" statusida bo'lmagan (masalan, "Kelishilgan"ga o'tgan) uylarni o'chirish
+  // Faqat AmoCRM lead IDlar (numeric) bo'lgan uylarni tekshiramiz
+  const allSyncedCrmIds = [];
+  let cleanupPage = 1;
+  while(true) {
+    const params = new URLSearchParams({
+        limit: 50, page: cleanupPage,
+        'filter[statuses][0][pipeline_id]': PIPELINE_ID,
+        'filter[statuses][0][status_id]': STATUS_ID,
+    });
+    const res = await fetch(`${BASE_URL}/leads?${params.toString()}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+    if (res.status === 204) break;
+    const data = await res.json();
+    const leads = data._embedded?.leads || [];
+    if (!leads.length) break;
+    leads.forEach(l => allSyncedCrmIds.push(String(l.id)));
+    if (!data._links?.next) break;
+    cleanupPage++;
+  }
+
+  if (allSyncedCrmIds.length > 0) {
+    const deleted = await prisma.house.deleteMany({
+      where: {
+        crmId: { notIn: allSyncedCrmIds },
+        // Bot orqali qo'shilgan entrylarni emas, faqat numeric CRM IDli uylarni o'chiramiz
+        AND: [
+            { crmId: { not: null } },
+            { crmId: { not: { startsWith: 'Nr' } } }
+        ]
+      }
+    });
+    console.log(`[SYNC] ${deleted.count} ta sotilgan yoki statusi o'zgargan uy o'chirildi.`);
+  }
+
   console.log(`[SYNC] Tayyor! ${totalSynced} ta "Mulk mini app" leid yangilandi.`);
 }
 
