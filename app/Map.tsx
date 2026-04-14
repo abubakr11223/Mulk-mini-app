@@ -1,432 +1,220 @@
 "use client"
 
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  useMap,
-} from "react-leaflet"
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet"
 import MarkerClusterGroup from "react-leaflet-cluster"
 import "leaflet/dist/leaflet.css"
-
 import { useEffect, useState } from "react"
 import L from "leaflet"
 import { motion, AnimatePresence } from "framer-motion"
 
-// ICON FIX
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-  iconUrl:
-    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  shadowUrl:
-    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 })
 
-const createPriceIcon = (price: string) =>
-  L.divIcon({
-    html: `
-      <div class="relative flex items-center justify-center px-3 py-1 rounded-[6px] font-extrabold text-[13px] tracking-tight shadow-md transition-transform duration-200 hover:scale-110 bg-[#FFD600] text-black border border-yellow-500/50 whitespace-nowrap">
-        ${price.replace(" ", "")}
-        <div class="absolute -bottom-[5px] left-1/2 -translate-x-1/2 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#FFD600]"></div>
-      </div>
-    `,
-    className: "",
-  })
+const createPriceIcon = (price: string) => L.divIcon({
+  html: `<div style="position:relative;display:flex;align-items:center;justify-content:center;padding:4px 10px;border-radius:6px;font-weight:900;font-size:13px;background:#FFD600;color:#000;border:1px solid rgba(0,0,0,0.15);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.2)">${price.replace(" ", "")}<div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #FFD600"></div></div>`,
+  className: "",
+})
 
-const createClusterIcon = (cluster: any) => {
-  const count = cluster.getChildCount()
-  return L.divIcon({
-    html: `
-      <div class="bg-[#FFD600] text-black w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-[14px] shadow-md border-[2px] border-white">
-        ${count}
-      </div>
-    `,
-    className: "",
-  })
-}
+const createClusterIcon = (cluster: any) => L.divIcon({
+  html: `<div style="background:#FFD600;color:#000;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.2);border:2px solid #fff">${cluster.getChildCount()}</div>`,
+  className: "",
+})
 
 export type House = {
-  id: number
-  crmId: string
-  lat: number
-  lng: number
-  price: string
-  oldPrice?: string
-  discount?: number
-  hot: boolean
-  title: string
-  description: string
-  image: string
-  images?: string[]
-  rooms: number
-  area: number
-  floor: number
-  totalFloors?: number
-  buildingType?: string
-  landmark?: string
+  id: number; crmId: string; lat: number; lng: number; price: string
+  oldPrice?: string; discount?: number; hot: boolean; title: string
+  description: string; image: string; images?: string[]; rooms: number
+  area: number; floor: number; totalFloors?: number; buildingType?: string; landmark?: string
 }
 
 function MapController({ selected, filteredHouses, isSearching }: { selected: House | null, filteredHouses: House[], isSearching: boolean }) {
   const map = useMap()
-
   useEffect(() => {
-    if (selected) {
-      map.flyTo([selected.lat - 0.007, selected.lng], 15, {
-        duration: 0.8,
-        easeLinearity: 0.25,
-      })
-    } else if (isSearching && filteredHouses.length > 0) {
-      const bounds = L.latLngBounds(filteredHouses.map(h => [h.lat, h.lng]))
-      if (filteredHouses.length === 1) {
-        map.flyTo([filteredHouses[0].lat, filteredHouses[0].lng], 15, { duration: 0.6 })
-      } else {
-        map.flyToBounds(bounds, { padding: [50, 50], duration: 0.6, maxZoom: 14 })
-      }
+    if (selected) { map.flyTo([selected.lat - 0.007, selected.lng], 15, { duration: 0.8 }) }
+    else if (isSearching && filteredHouses.length > 0) {
+      if (filteredHouses.length === 1) { map.flyTo([filteredHouses[0].lat, filteredHouses[0].lng], 15, { duration: 0.6 }) }
+      else { map.flyToBounds(L.latLngBounds(filteredHouses.map(h => [h.lat, h.lng])), { padding: [50, 50], duration: 0.6, maxZoom: 14 }) }
     }
   }, [selected, filteredHouses, isSearching, map])
-
   return null
 }
 
-const TRANSLATIONS = {
-  uz: {
-    gallery: "Galereya",
-    map: "Xarita",
-    call: "Sotuvchi bilan bog'lanish",
-    back: "Orqaga",
-    filter: "Filtrlar",
-    room: "Xonalar",
-    area: "Yuzasi",
-    floor: "Qavat",
-    bType: "Bino turi",
-    landmark: "Mo'ljal (Orientir)",
-    desc: "Ta'rifi",
-    search: "Qidirish...",
-    latest: "Sotuvdagi e'lonlar",
-    NotFound: "Hech narsa topilmadi",
-    mainSpec: "Asosiy xususiyatlar",
-  },
-  ru: {
-    gallery: "Галерея",
-    map: "Карта",
-    call: "Связаться с продавцом",
-    back: "Назад",
-    filter: "Фильтры",
-    room: "Комнаты",
-    area: "Площадь",
-    floor: "Этаж",
-    bType: "Тип здания",
-    landmark: "Ориентир",
-    desc: "Описание",
-    search: "Поиск...",
-    latest: "Объявления о продаже",
-    NotFound: "Ничего не найдено",
-    mainSpec: "Основные характеристики",
-  },
-  en: {
-    gallery: "Gallery",
-    map: "Map",
-    call: "Contact Seller",
-    back: "Back",
-    filter: "Filters",
-    room: "Rooms",
-    area: "Area",
-    floor: "Floor",
-    bType: "Building Type",
-    landmark: "Landmark",
-    desc: "Description",
-    search: "Search...",
-    latest: "Listings for sale",
-    NotFound: "Nothing found",
-    mainSpec: "Main features",
-  }
+type Filters = {
+  tuman: string
+  buildingType: string
+  roomsFrom: string
+  roomsTo: string
+  floorFrom: string
+  floorTo: string
+  areaFrom: string
+  areaTo: string
+  priceFrom: string
+  priceTo: string
+}
+
+const emptyFilters: Filters = {
+  tuman: '', buildingType: '', roomsFrom: '', roomsTo: '',
+  floorFrom: '', floorTo: '', areaFrom: '', areaTo: '',
+  priceFrom: '', priceTo: ''
 }
 
 export default function Map() {
-  const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
-  const t = TRANSLATIONS[lang]
-
   const [houses, setHouses] = useState<House[]>([])
   const [selected, setSelected] = useState<House | null>(null)
-
-  const [view, setView] = useState<"gallery" | "map">("gallery")
+  const [view, setView] = useState<"gallery"|"map">("gallery")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [appliedSearch, setAppliedSearch] = useState("")
   const [showDetail, setShowDetail] = useState(false)
+  const [filters, setFilters] = useState<Filters>(emptyFilters)
+  const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters)
+  const [lang, setLang] = useState<"uz"|"ru"|"en">("uz")
+
+  const T: any = {
+    uz: { gallery: "Galereya", map: "Xarita", call: "Sotuvchi bilan bog'lanish", filter: "Filtrlar", room: "Xonalar", area: "Yuzasi", floor: "Qavat", bType: "Bino turi", landmark: "Orientir", desc: "Ta'rifi", search: "Qidirish...", latest: "Sotuvdagi e'lonlar" },
+    ru: { gallery: "Галерея", map: "Карта", call: "Связаться с продавцом", filter: "Фильтры", room: "Комнаты", area: "Площадь", floor: "Этаж", bType: "Тип здания", landmark: "Ориентир", desc: "Описание", search: "Поиск...", latest: "Объявления о продаже" },
+    en: { gallery: "Gallery", map: "Map", call: "Contact Seller", filter: "Filters", room: "Rooms", area: "Area", floor: "Floor", bType: "Building Type", landmark: "Landmark", desc: "Description", search: "Search...", latest: "Listings for sale" }
+  }
+  const t = T[lang]
 
   useEffect(() => {
     fetch("/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=" + Date.now())
-      .then((res) => res.json())
-      .then((data) => setHouses(data))
+      .then(r => r.json()).then(setHouses)
   }, [])
+
+  const activeFilterCount = Object.values(appliedFilters).filter(v => v !== '').length
 
   const filteredHouses = houses.filter(h => {
     const q = searchQuery.toLowerCase().trim()
-    if (!q) return true
-    return h.title.toLowerCase().includes(q) ||
-      (h.crmId && h.crmId.toString().includes(q)) ||
-      (h.landmark && h.landmark.toLowerCase().includes(q))
+    if (q && !h.title.toLowerCase().includes(q) && !(h.crmId && h.crmId.toString().includes(q)) && !(h.landmark && h.landmark.toLowerCase().includes(q))) return false
+    if (appliedFilters.tuman && !(h.landmark && h.landmark.toLowerCase().includes(appliedFilters.tuman.toLowerCase()))) return false
+    if (appliedFilters.buildingType && h.buildingType !== appliedFilters.buildingType) return false
+    if (appliedFilters.roomsFrom && h.rooms < parseInt(appliedFilters.roomsFrom)) return false
+    if (appliedFilters.roomsTo && h.rooms > parseInt(appliedFilters.roomsTo)) return false
+    if (appliedFilters.floorFrom && h.floor < parseInt(appliedFilters.floorFrom)) return false
+    if (appliedFilters.floorTo && h.floor > parseInt(appliedFilters.floorTo)) return false
+    if (appliedFilters.areaFrom && h.area < parseFloat(appliedFilters.areaFrom)) return false
+    if (appliedFilters.areaTo && h.area > parseFloat(appliedFilters.areaTo)) return false
+    if (appliedFilters.priceFrom) { const p = parseInt(h.price.replace(/\D/g, '')) || 0; if (p < parseInt(appliedFilters.priceFrom)) return false }
+    if (appliedFilters.priceTo) { const p = parseInt(h.price.replace(/\D/g, '')) || 0; if (p > parseInt(appliedFilters.priceTo)) return false }
+    return true
   })
 
-  const sortedHouses = [...filteredHouses].sort((a, b) => {
-    const pA = parseInt(a.price.replace(/\D/g, "")) || 0
-    const pB = parseInt(b.price.replace(/\D/g, "")) || 0
-    return pA - pB
-  })
+  const sortedHouses = [...filteredHouses].sort((a, b) => (parseInt(a.price.replace(/\D/g,""))||0) - (parseInt(b.price.replace(/\D/g,""))||0))
+  const floorLabel = (h: House) => !h.floor ? '—' : h.totalFloors ? `${h.floor}/${h.totalFloors}` : `${h.floor}`
 
-  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      setAppliedSearch(searchQuery)
-    }
-  }
+  const inp = (s?: any) => ({ background: '#f3f4f6', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', outline: 'none', fontWeight: 600, color: '#111', fontSize: 15, width: '100%', boxSizing: 'border-box' as const, ...s })
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#f2f2f7]">
+    <div style={{ position: 'relative', height: '100vh', width: '100%', overflow: 'hidden', background: '#f2f2f7' }}>
 
-      {/* 🔴 MAP LAYER */}
-      <div className="absolute inset-0 z-0">
-        <MapContainer
-          center={[41.2995, 69.2401]}
-          zoom={13}
-          zoomControl={false}
-          minZoom={12}
-          maxZoom={18}
-          maxBounds={[
-            [41.0, 68.8],
-            [41.6, 69.6],
-          ]}
-          maxBoundsViscosity={1.0}
-          className="h-full w-full"
-        >
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          />
+      {/* MAP */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+        <MapContainer center={[41.2995, 69.2401]} zoom={13} zoomControl={false} minZoom={11} maxZoom={18} maxBounds={[[41.0,68.8],[41.6,69.6]]} maxBoundsViscosity={1.0} style={{ height: '100%', width: '100%' }}>
+          <TileLayer url="https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU" attribution="© Яндекс Карты" />
           <MapController selected={selected} filteredHouses={filteredHouses} isSearching={searchQuery.trim().length > 0} />
-
           <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
-            {filteredHouses.map((h) => (
-              <Marker
-                key={h.id}
-                position={[h.lat, h.lng]}
-                icon={createPriceIcon(h.price)}
-                eventHandlers={{
-                  click: () => setSelected(h),
-                }}
-              />
+            {filteredHouses.map(h => (
+              <Marker key={h.id} position={[h.lat, h.lng]} icon={createPriceIcon(h.price)} eventHandlers={{ click: () => setSelected(h) }} />
             ))}
           </MarkerClusterGroup>
         </MapContainer>
       </div>
 
-      {/* 🔵 MAP VIEW CONTROLS */}
+      {/* MAP CONTROLS */}
       <AnimatePresence>
         {view === "map" && !selected && !showDetail && !isFilterOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="absolute top-5 left-0 right-0 z-[10] px-4 flex gap-2 pointer-events-none items-center"
-          >
-            <button
-              onClick={() => setView("gallery")}
-              className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-[14px] px-3 py-3 shadow-[0_4px_15px_rgba(0,0,0,0.08)] flex items-center justify-center gap-1 border border-gray-100 flex-shrink-0 active:scale-95 transition-transform"
-            >
-              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{ position: 'absolute', top: 20, left: 0, right: 0, zIndex: 10, padding: '0 16px', display: 'flex', gap: 8, pointerEvents: 'none' }}>
+            <button onClick={() => setView("gallery")} style={{ pointerEvents: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '10px 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)', flexShrink: 0 }}>
+              <svg width="20" height="20" fill="none" stroke="#000" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
             </button>
-
-            <div className="flex-1 bg-white/95 backdrop-blur-md rounded-[14px] flex items-center px-3 py-2.5 border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.08)] pointer-events-auto">
-              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
-              <input
-                type="text"
-                placeholder={t.search}
-                className="bg-transparent border-none outline-none ml-2 w-full text-[13px] font-bold text-gray-900 placeholder-gray-400"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div style={{ flex: 1, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, display: 'flex', alignItems: 'center', padding: '8px 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)', pointerEvents: 'auto' }}>
+              <input type="text" placeholder={t.search} style={{ background: 'none', border: 'none', outline: 'none', width: '100%', fontSize: 13, fontWeight: 700, color: '#111' }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
-
-            <button
-              onClick={() => setIsFilterOpen(true)}
-              className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-[14px] p-3 shadow-[0_4px_15px_rgba(0,0,0,0.08)] border border-gray-100 flex-shrink-0 active:scale-95 transition-transform"
-            >
-              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 🟡 GALLERY VIEW LAYER */}
+      {/* GALLERY */}
       <AnimatePresence>
         {view === "gallery" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[20] overflow-y-auto bg-[#f2f2f7]"
-          >
-            {/* Header Sticky */}
-            <div className="sticky top-0 z-[30] bg-white rounded-b-[24px] shadow-sm flex flex-col px-4 pt-4 pb-2 space-y-3">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[#FFD600] rounded-md flex items-center justify-center">
-                    <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                  </div>
-                  <span className="font-extrabold text-[19px] tracking-tight text-black">MULK INVEST</span>
-                </div>
-                <a href="https://instagram.com/mulk_invest" target="_blank" className="flex items-center gap-1.5 bg-gray-50 py-1.5 px-3 rounded-full border border-gray-200 active:scale-95 transition-transform">
-                  <svg className="w-4 h-4 text-[#E1306C]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm3.98-10.822a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" /></svg>
-                  <span className="text-[12px] font-bold text-gray-800">@mulk_invest</span>
-                </a>
-
-                <div className="relative">
-                  <select
-                    value={lang}
-                    onChange={(e) => setLang(e.target.value as any)}
-                    className="appearance-none bg-gray-100 text-gray-800 text-[12px] font-black pl-3 pr-7 py-2 rounded-xl outline-none cursor-pointer border border-gray-200 shadow-sm"
-                  >
-                    <option value="uz">UZB</option>
-                    <option value="ru">РУС</option>
-                    <option value="en">ENG</option>
-                  </select>
-                  <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, zIndex: 20, overflowY: 'auto', background: '#f2f2f7' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 30, background: '#fff', borderRadius: '0 0 24px 24px', boxShadow: '0 2px 10px rgba(0,0,0,0.06)', padding: '16px 16px 8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span style={{ fontWeight: 900, fontSize: 19, color: '#000' }}>MULK INVEST</span>
+                <a href="https://instagram.com/mulk_invest" target="_blank" style={{ fontSize: 12, fontWeight: 700, color: '#333', background: '#f9fafb', padding: '6px 12px', borderRadius: 999, border: '1px solid #e5e7eb', textDecoration: 'none' }}>@mulk_invest</a>
+                <select value={lang} onChange={e => setLang(e.target.value as any)} style={{ background: '#f3f4f6', color: '#111', fontSize: 12, fontWeight: 900, padding: '7px 12px', borderRadius: 12, border: '1px solid #e5e7eb', outline: 'none' }}>
+                  <option value="uz">UZB</option><option value="ru">РУС</option><option value="en">ENG</option>
+                </select>
               </div>
-
-              <div className="flex gap-2">
-                <div className="flex-1 bg-gray-100/80 rounded-[14px] flex items-center px-4 py-3 border border-gray-200">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
-                  <input
-                    type="text"
-                    placeholder={t.search}
-                    className="bg-transparent border-none outline-none ml-2 w-full text-[14px] font-bold text-gray-900 placeholder-gray-400"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+              <div style={{ background: '#f3f4f6', borderRadius: 14, display: 'flex', alignItems: 'center', padding: '10px 16px', border: '1px solid #e5e7eb', marginBottom: 10 }}>
+                <input type="text" placeholder={t.search} style={{ background: 'none', border: 'none', outline: 'none', width: '100%', fontSize: 14, fontWeight: 700, color: '#111' }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
-
-              <div className="flex gap-1.5 w-full pt-1">
-                <button className="flex-1 bg-[#FFD600] text-black font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 shadow-sm border border-yellow-400">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z" /></svg>
-                  {t.gallery}
-                </button>
-                <button onClick={() => setView("map")} className="flex-1 bg-gray-100 text-gray-800 font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 border border-gray-200 active:bg-gray-200 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                  {t.map}
-                </button>
-                <button onClick={() => setIsFilterOpen(true)} className="flex-[0.8] bg-gray-100 text-gray-800 font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 border border-gray-200 active:bg-gray-200 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button style={{ flex: 1, background: '#FFD600', color: '#000', fontWeight: 900, padding: '12px 0', borderRadius: 14, fontSize: 13, border: '1px solid #e6c200', cursor: 'pointer' }}>{t.gallery}</button>
+                <button onClick={() => setView("map")} style={{ flex: 1, background: '#f3f4f6', color: '#333', fontWeight: 900, padding: '12px 0', borderRadius: 14, fontSize: 13, border: '1px solid #e5e7eb', cursor: 'pointer' }}>{t.map}</button>
+                <button onClick={() => setIsFilterOpen(true)} style={{ position: 'relative', flex: 0.8, background: '#f3f4f6', color: '#333', fontWeight: 900, padding: '12px 0', borderRadius: 14, fontSize: 13, border: '1px solid #e5e7eb', cursor: 'pointer' }}>
                   {t.filter}
+                  {activeFilterCount > 0 && <span style={{ position: 'absolute', top: -6, right: -6, background: '#FFD600', color: '#000', width: 18, height: 18, borderRadius: '50%', fontSize: 10, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{activeFilterCount}</span>}
                 </button>
               </div>
-              <div className="flex border-b border-gray-100 pb-0 mt-1">
-                <span className="text-[#FFD600] font-black text-[14px] border-b-[3px] border-[#FFD600] pb-2 px-1 rounded-t-sm">{t.latest}</span>
+              <div style={{ marginTop: 8, borderBottom: '3px solid #FFD600', paddingBottom: 8, display: 'inline-block' }}>
+                <span style={{ color: '#FFD600', fontWeight: 900, fontSize: 14 }}>{t.latest} ({sortedHouses.length})</span>
               </div>
             </div>
 
-            {/* Grid List for Gallery */}
-            <div className="grid grid-cols-2 gap-3 p-4 pb-24">
-              {sortedHouses.map((h) => (
-                <div
-                  key={h.id}
-                  onClick={() => { setSelected(h); setShowDetail(true) }}
-                  className="bg-white rounded-[16px] overflow-hidden shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-100 active:scale-95 transition-transform"
-                >
-                  <div className="relative h-[120px] w-full">
-                    <img src={h.image} className="w-full h-full object-cover" />
-                    {h.hot && (
-                      <span className="absolute top-2 right-2 bg-[#FFD600] text-black text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">TOP</span>
-                    )}
-                    {h.discount ? (
-                      <span className="absolute top-2 left-2 bg-red-600 shadow-md border border-red-500/50 text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-0.5">
-                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                        -{h.discount}%
-                      </span>
-                    ) : null}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
-                    <span className="absolute bottom-2 right-2 text-white font-bold text-[10px] drop-shadow-md">{h.area} m²</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 16px 96px' }}>
+              {sortedHouses.map(h => (
+                <div key={h.id} onClick={() => { setSelected(h); setShowDetail(true) }} style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0', cursor: 'pointer' }}>
+                  <div style={{ position: 'relative', height: 120 }}>
+                    <img src={h.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {h.hot && <span style={{ position: 'absolute', top: 6, right: 6, background: '#FFD600', color: '#000', fontSize: 9, fontWeight: 900, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>TOP</span>}
+                    {h.discount ? <span style={{ position: 'absolute', top: 6, left: 6, background: '#dc2626', color: '#fff', fontSize: 9, fontWeight: 900, padding: '2px 6px', borderRadius: 4 }}>-{h.discount}%</span> : null}
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)' }}/>
+                    <span style={{ position: 'absolute', bottom: 6, right: 6, color: '#fff', fontWeight: 700, fontSize: 10 }}>{h.area ? h.area + ' m²' : ''}</span>
                   </div>
-                  <div className="p-3">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                      <p className={`font-black text-[14px] leading-tight ${h.discount ? 'text-red-600' : 'text-gray-900'}`}>{h.price}</p>
-                      {h.oldPrice && <p className="text-gray-400 text-[10px] font-bold line-through pt-[1px]">{h.oldPrice}</p>}
-                    </div>
-                    <p className="text-gray-900 text-[12px] font-bold leading-snug line-clamp-1 mb-1">{h.title}</p>
-                    <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-gray-500 font-medium line-clamp-2">
-                      {h.landmark && <p className="flex items-center gap-1 text-gray-600">Location: {h.landmark}</p>}
-                      {h.description && <p className="line-clamp-1">{h.description}</p>}
-                    </div>
+                  <div style={{ padding: 10 }}>
+                    <p style={{ fontWeight: 900, fontSize: 14, color: h.discount ? '#dc2626' : '#111', margin: '0 0 2px' }}>{h.price}</p>
+                    {h.oldPrice && <p style={{ color: '#9ca3af', fontSize: 10, fontWeight: 700, textDecoration: 'line-through', margin: '0 0 2px' }}>{h.oldPrice}</p>}
+                    <p style={{ color: '#111', fontSize: 12, fontWeight: 700, margin: '0 0 2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{h.title}</p>
+                    {h.landmark && <p style={{ color: '#6b7280', fontSize: 10, margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{h.landmark}</p>}
                   </div>
                 </div>
               ))}
-              {sortedHouses.length === 0 && (
-                <div className="col-span-2 text-center text-gray-400 py-10 font-bold">Hech nima topilmadi...</div>
-              )}
+              {sortedHouses.length === 0 && <div style={{ gridColumn: 'span 2', textAlign: 'center', color: '#9ca3af', padding: '40px 0', fontWeight: 700 }}>Hech nima topilmadi...</div>}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 🟠 BOTTOM SHEET */}
+      {/* BOTTOM SHEET */}
       <AnimatePresence>
         {selected && !showDetail && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSelected(null)}
-              className="absolute inset-0 z-[1010] bg-black/30 backdrop-blur-[1px]"
-            />
-            <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 26, stiffness: 280 }}
-              drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.2}
-              onDragEnd={(e, info) => { if (info.offset.y > 100) setSelected(null) }}
-              className="absolute bottom-0 left-0 w-full z-[1020] bg-white rounded-t-[24px] shadow-[0_-10px_40px_rgb(0,0,0,0.1)] pb-8 pt-3 px-4 md:px-0"
-            >
-              <div className="max-w-md mx-auto relative px-1">
-                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
-
-                {/* ✅ BOTTOM SHEET RASM — balandligi cheklangan */}
-                <div className="relative w-full h-[220px] rounded-[16px] overflow-hidden mb-4 border border-gray-200 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] bg-black">
-                  {selected.images && selected.images.length > 0 ? (
-                    selected.images.map((img, idx) => (
-                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
-                        <img src={img} alt={selected.title} className="w-full h-full object-cover" />
-                        <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md z-20 pointer-events-none">
-                          {idx + 1} / {selected.images?.length}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="min-w-full h-full relative shrink-0">
-                      <img src={selected.image} alt={selected.title} className="w-full h-full object-cover" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelected(null)} style={{ position: 'absolute', inset: 0, zIndex: 1010, background: 'rgba(0,0,0,0.3)' }} />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.2} onDragEnd={(_e: any, info: any) => { if (info.offset.y > 100) setSelected(null) }}
+              style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', zIndex: 1020, background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -10px 40px rgba(0,0,0,0.1)', paddingBottom: 32, paddingTop: 12 }}>
+              <div style={{ maxWidth: 448, margin: '0 auto', padding: '0 16px' }}>
+                <div style={{ width: 48, height: 6, background: '#e5e7eb', borderRadius: 999, margin: '0 auto 16px' }} />
+                <div style={{ position: 'relative', width: '100%', height: 220, borderRadius: 16, overflow: 'hidden', marginBottom: 16, border: '1px solid #e5e7eb', display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', background: '#000' }} className="[&::-webkit-scrollbar]:hidden">
+                  {selected.images && selected.images.length > 0 ? selected.images.map((img, idx) => (
+                    <div key={idx} style={{ minWidth: '100%', height: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0 }}>
+                      <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>{idx+1} / {selected.images?.length}</div>
                     </div>
-                  )}
-                  {selected.hot && (
-                    <div className="absolute top-3 left-3 bg-[#FFD600] text-black font-extrabold text-[11px] px-3 py-1.5 rounded-md shadow-md uppercase tracking-wider z-10 pointer-events-none">TOP E'lon</div>
-                  )}
-                  {selected.crmId && (
-                    <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white font-bold text-[10px] px-2 py-1 rounded-md uppercase tracking-wider z-10 pointer-events-none">ID: {selected.crmId}</div>
-                  )}
+                  )) : <div style={{ minWidth: '100%', height: '100%', flexShrink: 0 }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
+                  {selected.crmId && <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, zIndex: 10 }}>ID: {selected.crmId}</div>}
                 </div>
-
-                <div className="mb-4 text-left">
-                  <h2 className="text-[18px] font-black text-black leading-tight mb-1">{selected.title}</h2>
-                  <p className="text-gray-500 text-[14px] line-clamp-1 leading-relaxed">{selected.description}</p>
-                </div>
-                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-[16px] border border-gray-200">
-                  <div className="flex flex-col ml-1">
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Narxi</span>
-                    <span className="text-2xl font-black text-black leading-none">{selected.price}</span>
-                  </div>
-                  <button
-                    onClick={() => setShowDetail(true)}
-                    className="bg-[#FFD600] border border-yellow-400 text-black font-extrabold py-3.5 px-8 rounded-[12px] active:scale-95 transition-transform text-[14px] shadow-sm ml-2">
-                    Batafsil
-                  </button>
+                <h2 style={{ fontSize: 18, fontWeight: 900, color: '#000', margin: '0 0 4px' }}>{selected.title}</h2>
+                <p style={{ color: '#6b7280', fontSize: 14, margin: '0 0 16px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{selected.description}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f9fafb', padding: 12, borderRadius: 16, border: '1px solid #e5e7eb' }}>
+                  <span style={{ fontSize: 24, fontWeight: 900, color: '#000' }}>{selected.price}</span>
+                  <button onClick={() => setShowDetail(true)} style={{ background: '#FFD600', color: '#000', fontWeight: 900, padding: '14px 32px', borderRadius: 12, fontSize: 14, border: '1px solid #e6c200', cursor: 'pointer' }}>Batafsil</button>
                 </div>
               </div>
             </motion.div>
@@ -434,180 +222,161 @@ export default function Map() {
         )}
       </AnimatePresence>
 
-      {/* 🔴 FULL SCREEN DETAILS VIEW */}
+      {/* DETAIL VIEW */}
       <AnimatePresence>
         {showDetail && selected && (
-          <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
-          >
-            {/* ✅ DETAIL RASM — max balandligi cheklangan */}
-            <div className="relative w-full bg-black">
-              <div className="flex overflow-x-auto snap-x snap-mandatory w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: '60vh' }}>
-                {selected.images && selected.images.length > 0 ? (
-                  selected.images.map((img, idx) => (
-                    <div key={idx} className="min-w-full relative snap-center shrink-0" style={{ maxHeight: '60vh' }}>
-                      <img src={img} className="w-full h-full object-cover" style={{ maxHeight: '60vh' }} />
-                      <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md z-20 pointer-events-none shadow-md border border-white/20">
-                        {idx + 1} / {selected.images?.length}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="min-w-full relative shrink-0" style={{ maxHeight: '60vh' }}>
-                    <img src={selected.image} className="w-full h-full object-cover" style={{ maxHeight: '60vh' }} />
+          <motion.div initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            style={{ position: 'absolute', inset: 0, zIndex: 3000, background: '#fff', overflowY: 'auto' }}>
+            <div style={{ position: 'relative', width: '100%', background: '#000' }}>
+              <div style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', maxHeight: '60vh' }} className="[&::-webkit-scrollbar]:hidden">
+                {selected.images && selected.images.length > 0 ? selected.images.map((img, idx) => (
+                  <div key={idx} style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0, maxHeight: '60vh' }}>
+                    <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} />
+                    <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>{idx+1} / {selected.images?.length}</div>
+                  </div>
+                )) : <div style={{ minWidth: '100%', flexShrink: 0, maxHeight: '60vh' }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} /></div>}
+              </div>
+              <button onClick={() => { setShowDetail(false); if (view === "gallery") setSelected(null) }} style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, width: 40, height: 40, background: 'rgba(0,0,0,0.4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
+                <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '40px 20px 20px', background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)', pointerEvents: 'none' }}>
+                {selected.crmId && <span style={{ background: '#FFD600', color: '#000', fontWeight: 900, padding: '4px 10px', borderRadius: 6, fontSize: 11, textTransform: 'uppercase', display: 'inline-block', marginBottom: 10 }}>ID: {selected.crmId}</span>}
+                <h1 style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: 0 }}>{selected.title}</h1>
+              </div>
+            </div>
+            <div style={{ padding: '20px 20px 112px', background: '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                <p style={{ fontSize: 32, fontWeight: 900, color: '#000', margin: 0 }}>{selected.price}</p>
+                {selected.discount && selected.oldPrice && (
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ color: '#ef4444', fontWeight: 900, fontSize: 13 }}>-{selected.discount}%</span>
+                    <span style={{ color: '#9ca3af', fontSize: 12, textDecoration: 'line-through' }}>{selected.oldPrice}</span>
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => {
-                  setShowDetail(false);
-                  if (view === "gallery") setSelected(null);
-                }}
-                className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/40 backdrop-blur-md flex justify-center items-center rounded-full text-white active:scale-95 transition-transform"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
-              </button>
-
-              <div className="absolute bottom-0 left-0 right-0 p-5 pt-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none flex flex-col justify-end">
-                <div>
-                  {selected.crmId && <span className="bg-[#FFD600] text-black font-extrabold px-2.5 py-1 rounded-md text-[11px] uppercase tracking-wider mb-2.5 inline-block shadow-md pointer-events-auto">ID: {selected.crmId}</span>}
+              <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', background: '#fff', padding: 16, borderRadius: 16, border: '2px solid #f0f0f0', marginBottom: 32, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{selected.rooms || "—"}</span>
+                  <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.room}</span>
                 </div>
-                <h1 className="text-[26px] font-black text-white leading-tight drop-shadow-lg pointer-events-auto">{selected.title}</h1>
-              </div>
-            </div>
-
-            <div className="p-5 pb-28">
-              <p className="text-3xl font-black text-black mb-6">{selected.price}</p>
-
-              <div className="flex justify-around items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-8 shadow-sm">
-                <div className="flex flex-col items-center">
-                  <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                  <span className="font-black text-[16px] text-gray-900">{selected.rooms || '—'}</span>
-                  <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.room}</span>
+                <div style={{ width: 1, height: 40, background: '#e5e7eb' }}/>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{selected.area ? selected.area + " m²" : "—"}</span>
+                  <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.area}</span>
                 </div>
-                <div className="w-px h-10 bg-gray-200"></div>
-                <div className="flex flex-col items-center">
-                  <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                  <span className="font-black text-[16px] text-gray-900">{selected.area ? selected.area + " m²" : '—'}</span>
-                  <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.area}</span>
-                </div>
-                <div className="w-px h-10 bg-gray-200"></div>
-                <div className="flex flex-col items-center">
-                  <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                  <span className="font-black text-[16px] text-gray-900">{selected.floor ? selected.floor + "/" + (selected.totalFloors || '—') : '—'}</span>
-                  <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.floor}</span>
+                <div style={{ width: 1, height: 40, background: '#e5e7eb' }}/>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{floorLabel(selected)}</span>
+                  <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.floor}</span>
                 </div>
               </div>
-
-              <div className="flex flex-col gap-1 mb-8 px-2">
+              <div style={{ marginBottom: 32 }}>
                 {selected.buildingType && (
-                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-gray-500 font-bold text-[14px]">{t.bType}</span>
-                    <span className="text-black font-black text-[15px]">{selected.buildingType}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <span style={{ color: '#555', fontWeight: 700, fontSize: 14 }}>{t.bType}</span>
+                    <span style={{ color: '#111', fontWeight: 900, fontSize: 15 }}>{selected.buildingType}</span>
                   </div>
                 )}
                 {selected.landmark && (
-                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-gray-500 font-bold text-[14px]">{t.landmark}</span>
-                    <span className="text-black font-black text-[15px]">{selected.landmark}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <span style={{ color: '#555', fontWeight: 700, fontSize: 14 }}>{t.landmark}</span>
+                    <span style={{ color: '#111', fontWeight: 900, fontSize: 15, textAlign: 'right', maxWidth: '60%' }}>{selected.landmark}</span>
                   </div>
                 )}
               </div>
-
-              <h3 className="font-black text-gray-900 mb-3 text-[18px]">{t.desc}</h3>
-              <p className="text-gray-600 leading-relaxed text-[15px]">
-                {selected.description}
-              </p>
+              {selected.description && (
+                <>
+                  <h3 style={{ fontWeight: 900, color: '#111', marginBottom: 12, fontSize: 18 }}>{t.desc}</h3>
+                  <p style={{ color: '#444', lineHeight: 1.7, fontSize: 15 }}>{selected.description}</p>
+                </>
+              )}
             </div>
-
-            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-5 z-20">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText("+998909059990");
-                  alert("Raqam nusxa olindi: +998 90 905 99 90");
-                  window.location.href = "tel:+998909059990";
-                }}
-                className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-2"
-              >
-                <svg className="w-5 h-5 inline-block mx-1" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                {t.call}
+            <div style={{ position: 'fixed', bottom: 0, left: 0, width: '100%', background: '#fff', borderTop: '1px solid #f0f0f0', padding: 20, zIndex: 20, boxSizing: 'border-box' }}>
+              <button onClick={() => { window.location.href = "tel:+998909059990" }} style={{ width: '100%', background: '#FFD600', color: '#000', fontWeight: 900, padding: '16px 0', borderRadius: 16, fontSize: 16, border: 'none', cursor: 'pointer' }}>
+                📞 {t.call}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 🟣 FILTER MODAL */}
+      {/* FILTER */}
       <AnimatePresence>
         {isFilterOpen && (
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="absolute inset-0 z-[4000] bg-white overflow-y-auto"
-          >
-            <div className="sticky top-0 bg-white/90 backdrop-blur-xl px-5 py-4 flex items-center justify-between border-b border-gray-100 z-10">
-              <h2 className="text-2xl font-black text-black">{t.filter}</h2>
-              <button onClick={() => setIsFilterOpen(false)} className="bg-gray-100 p-2.5 rounded-full text-gray-800 active:scale-95">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            style={{ position: 'absolute', inset: 0, zIndex: 4000, background: '#fff', overflowY: 'auto' }}>
+
+            <div style={{ position: 'sticky', top: 0, background: '#fff', padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', zIndex: 10 }}>
+              <h2 style={{ fontSize: 26, fontWeight: 900, color: '#000', margin: 0 }}>Filtrlar</h2>
+              <button onClick={() => setIsFilterOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                <svg width="28" height="28" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
-            <div className="p-5 space-y-5 pb-32">
+
+            <div style={{ padding: '20px 20px 140px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+              {/* Kvartira turi */}
               <div>
-                <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Tuman / Ko'cha</label>
-                <input type="text" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900 transition-colors" placeholder="Yozing..." />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Narx (dan)</label>
-                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="0 $" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Narx (gacha)</label>
-                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="Max" />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Xonalar (dan)</label>
-                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="1" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Xonalar (gacha)</label>
-                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="5" />
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Kvartira turi</p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[
+                    { value: 'Novostroyka', label: 'Yangi bino' },
+                    { value: 'Vtorichka', label: "Ikkinchi qo'l" },
+                  ].map(type => (
+                    <button key={type.value} onClick={() => setFilters(f => ({...f, buildingType: f.buildingType === type.value ? '' : type.value}))}
+                      style={{ flex: 1, padding: '14px 0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', border: filters.buildingType === type.value ? '2px solid #FFD600' : '1.5px solid #e5e7eb', background: filters.buildingType === type.value ? '#FFF9E0' : '#f3f4f6', color: filters.buildingType === type.value ? '#000' : '#555', transition: 'all 0.15s' }}>
+                      {type.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Maydon m² (dan)</label>
-                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="30" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Maydon m² (gacha)</label>
-                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="200" />
+
+              {/* Xonalar soni */}
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Xonalar soni</p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input type="number" value={filters.roomsFrom} onChange={e => setFilters(f => ({...f, roomsFrom: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input type="number" value={filters.roomsTo} onChange={e => setFilters(f => ({...f, roomsTo: e.target.value}))} style={inp({ flex: 1 })} />
                 </div>
               </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Qavat</label>
-                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="Etaj" />
+
+              {/* Qavat */}
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Qavat</p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input type="number" value={filters.floorFrom} onChange={e => setFilters(f => ({...f, floorFrom: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input type="number" value={filters.floorTo} onChange={e => setFilters(f => ({...f, floorTo: e.target.value}))} style={inp({ flex: 1 })} />
                 </div>
-                <div className="flex-[2]">
-                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Turar joy majmuasi</label>
-                  <input type="text" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="Nomi" />
+              </div>
+
+              {/* Maydon */}
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Maydon, m²</p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input type="number" value={filters.areaFrom} onChange={e => setFilters(f => ({...f, areaFrom: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input type="number" value={filters.areaTo} onChange={e => setFilters(f => ({...f, areaTo: e.target.value}))} style={inp({ flex: 1 })} />
+                </div>
+              </div>
+
+              {/* Narx */}
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Narx ($)</p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input type="number" value={filters.priceFrom} onChange={e => setFilters(f => ({...f, priceFrom: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input type="number" value={filters.priceTo} onChange={e => setFilters(f => ({...f, priceTo: e.target.value}))} style={inp({ flex: 1 })} />
                 </div>
               </div>
             </div>
-            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-5">
-              <button onClick={() => setIsFilterOpen(false)} className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-sm active:scale-95 transition-all">
-                Natijalarni ko'rsatish
+
+            {/* Tugmalar */}
+            <div style={{ position: 'fixed', bottom: 0, left: 0, width: '100%', background: '#fff', borderTop: '1px solid #f0f0f0', padding: '16px 20px', boxSizing: 'border-box', display: 'flex', gap: 12 }}>
+              <button onClick={() => { setFilters(emptyFilters); setAppliedFilters(emptyFilters) }}
+                style={{ flex: 0.4, background: '#f3f4f6', color: '#555', fontWeight: 700, padding: '16px 0', borderRadius: 16, fontSize: 15, border: '1.5px solid #e5e7eb', cursor: 'pointer' }}>
+                Tozalash
+              </button>
+              <button onClick={() => { setAppliedFilters(filters); setIsFilterOpen(false) }}
+                style={{ flex: 1, background: '#FFD600', color: '#000', fontWeight: 900, padding: '16px 0', borderRadius: 16, fontSize: 16, border: 'none', cursor: 'pointer' }}>
+                Qo'llash
               </button>
             </div>
           </motion.div>
