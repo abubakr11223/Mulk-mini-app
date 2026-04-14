@@ -130,6 +130,7 @@ export default function Map() {
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters)
   const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
+  const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
 
   const t = TRANSLATIONS[lang]
 
@@ -267,11 +268,11 @@ export default function Map() {
                 <div style={{ width: 48, height: 6, background: '#e5e7eb', borderRadius: 999, margin: '0 auto 16px' }} />
                 <div style={{ position: 'relative', width: '100%', height: 220, borderRadius: 16, overflow: 'hidden', marginBottom: 16, border: '1px solid #e5e7eb', display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', background: '#000' }} className="[&::-webkit-scrollbar]:hidden">
                   {selected.images && selected.images.length > 0 ? selected.images.map((img, idx) => (
-                    <div key={idx} style={{ minWidth: '100%', height: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0 }}>
+                    <div key={idx} onClick={() => setLightbox({ images: selected.images!, index: idx })} style={{ minWidth: '100%', height: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0, cursor: 'zoom-in' }}>
                       <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>{idx + 1} / {selected.images?.length}</div>
                     </div>
-                  )) : <div style={{ minWidth: '100%', height: '100%', flexShrink: 0 }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
+                  )) : <div onClick={() => setLightbox({ images: [selected.image], index: 0 })} style={{ minWidth: '100%', height: '100%', flexShrink: 0, cursor: 'zoom-in' }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
                   {selected.crmId && <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, zIndex: 10 }}>ID: {selected.crmId}</div>}
                 </div>
                 <h2 style={{ fontSize: 18, fontWeight: 900, color: '#000', margin: '0 0 4px' }}>{selected.title}</h2>
@@ -294,11 +295,11 @@ export default function Map() {
             <div style={{ position: 'relative', width: '100%', background: '#000' }}>
               <div style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', maxHeight: '60vh' }} className="[&::-webkit-scrollbar]:hidden">
                 {selected.images && selected.images.length > 0 ? selected.images.map((img, idx) => (
-                  <div key={idx} style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0, maxHeight: '60vh' }}>
+                  <div key={idx} onClick={() => setLightbox({ images: selected.images!, index: idx })} style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0, maxHeight: '60vh', cursor: 'zoom-in' }}>
                     <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} />
                     <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>{idx + 1} / {selected.images?.length}</div>
                   </div>
-                )) : <div style={{ minWidth: '100%', flexShrink: 0, maxHeight: '60vh' }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} /></div>}
+                )) : <div onClick={() => setLightbox({ images: [selected.image], index: 0 })} style={{ minWidth: '100%', flexShrink: 0, maxHeight: '60vh', cursor: 'zoom-in' }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} /></div>}
               </div>
               <button onClick={() => { setShowDetail(false); if (view === "gallery") setSelected(null) }} style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, width: 40, height: 40, background: 'rgba(0,0,0,0.4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
                 <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
@@ -360,6 +361,67 @@ export default function Map() {
                 📞 {t.call}
               </button>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* LIGHTBOX */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setLightbox(null)}
+            style={{ position: 'absolute', inset: 0, zIndex: 9000, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <button
+              onClick={() => setLightbox(null)}
+              style={{ position: 'absolute', top: 20, right: 20, zIndex: 10, width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}
+            >
+              <svg width="22" height="22" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 700, opacity: 0.8 }}>
+              {lightbox.index + 1} / {lightbox.images.length}
+            </div>
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ width: '100%', height: '100%', display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory' }}
+              className="[&::-webkit-scrollbar]:hidden"
+              ref={el => {
+                if (el) {
+                  el.scrollLeft = lightbox.index * el.offsetWidth
+                  el.onscroll = () => {
+                    const idx = Math.round(el.scrollLeft / el.offsetWidth)
+                    if (idx !== lightbox.index) setLightbox(lb => lb ? { ...lb, index: idx } : null)
+                  }
+                }
+              }}
+            >
+              {lightbox.images.map((img, idx) => (
+                <div key={idx} style={{ minWidth: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', scrollSnapAlign: 'center', flexShrink: 0 }}>
+                  <img
+                    src={img}
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none' }}
+                    draggable={false}
+                  />
+                </div>
+              ))}
+            </div>
+            {lightbox.images.length > 1 && lightbox.index > 0 && (
+              <button
+                onClick={e => { e.stopPropagation(); setLightbox(lb => lb ? { ...lb, index: lb.index - 1 } : null) }}
+                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 10 }}
+              >
+                <svg width="20" height="20" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+            )}
+            {lightbox.images.length > 1 && lightbox.index < lightbox.images.length - 1 && (
+              <button
+                onClick={e => { e.stopPropagation(); setLightbox(lb => lb ? { ...lb, index: lb.index + 1 } : null) }}
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 10 }}
+              >
+                <svg width="20" height="20" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
