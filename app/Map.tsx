@@ -43,6 +43,22 @@ function MapController({ selected, filteredHouses, isSearching }: { selected: Ho
   return null
 }
 
+const TUMANS = [
+  "Chilonzor tumani",
+  "Yunusobod tumani",
+  "Mirzo Ulug'bek tumani",
+  "Yakkasaroy tumani",
+  "Shayxontohur tumani",
+  "Mirobod tumani",
+  "Sergeli tumani",
+  "Uchtepa tumani",
+  "Olmazor tumani",
+  "Bektemir tumani",
+  "Yangihayot tumani",
+  "Yashnobod tumani",
+  "Almazar tumani",
+]
+
 type Filters = {
   tuman: string
   buildingType: string
@@ -62,23 +78,60 @@ const emptyFilters: Filters = {
   priceFrom: '', priceTo: ''
 }
 
+const TRANSLATIONS: any = {
+  uz: {
+    gallery: "Galereya", map: "Xarita", call: "Sotuvchi bilan bog'lanish",
+    filter: "Filtrlar", room: "Xonalar", area: "Yuzasi", floor: "Qavat",
+    bType: "Bino turi", landmark: "Orientir", desc: "Ta'rifi",
+    search: "Qidirish...", latest: "Sotuvdagi e'lonlar",
+    filterTitle: "Filtrlar", apartType: "Kvartira turi",
+    newBuilding: "Yangi bino", secondary: "Ikkinchi qo'l",
+    rooms: "Xonalar soni", floorLabel: "Qavat", area2: "Maydon, m²",
+    price: "Narx ($)", apply: "Qo'llash", clear: "Tozalash",
+    tuman: "Tuman", tumanPlaceholder: "Tumanni tanlang",
+    noResults: "Hech nima topilmadi...",
+    from: "Dan", to: "Gacha",
+  },
+  ru: {
+    gallery: "Галерея", map: "Карта", call: "Связаться с продавцом",
+    filter: "Фильтры", room: "Комнаты", area: "Площадь", floor: "Этаж",
+    bType: "Тип здания", landmark: "Ориентир", desc: "Описание",
+    search: "Поиск...", latest: "Объявления о продаже",
+    filterTitle: "Фильтры", apartType: "Тип квартиры",
+    newBuilding: "Новостройка", secondary: "Вторичка",
+    rooms: "Количество комнат", floorLabel: "Этаж", area2: "Площадь, м²",
+    price: "Цена ($)", apply: "Применить", clear: "Очистить",
+    tuman: "Район", tumanPlaceholder: "Выберите район",
+    noResults: "Ничего не найдено...",
+    from: "От", to: "До",
+  },
+  en: {
+    gallery: "Gallery", map: "Map", call: "Contact Seller",
+    filter: "Filters", room: "Rooms", area: "Area", floor: "Floor",
+    bType: "Building Type", landmark: "Landmark", desc: "Description",
+    search: "Search...", latest: "Listings for sale",
+    filterTitle: "Filters", apartType: "Apartment type",
+    newBuilding: "New building", secondary: "Secondary",
+    rooms: "Number of rooms", floorLabel: "Floor", area2: "Area, m²",
+    price: "Price ($)", apply: "Apply", clear: "Clear",
+    tuman: "District", tumanPlaceholder: "Select district",
+    noResults: "Nothing found...",
+    from: "From", to: "To",
+  }
+}
+
 export default function Map() {
   const [houses, setHouses] = useState<House[]>([])
   const [selected, setSelected] = useState<House | null>(null)
-  const [view, setView] = useState<"gallery"|"map">("gallery")
+  const [view, setView] = useState<"gallery" | "map">("gallery")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [showDetail, setShowDetail] = useState(false)
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters)
-  const [lang, setLang] = useState<"uz"|"ru"|"en">("uz")
+  const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
 
-  const T: any = {
-    uz: { gallery: "Galereya", map: "Xarita", call: "Sotuvchi bilan bog'lanish", filter: "Filtrlar", room: "Xonalar", area: "Yuzasi", floor: "Qavat", bType: "Bino turi", landmark: "Orientir", desc: "Ta'rifi", search: "Qidirish...", latest: "Sotuvdagi e'lonlar" },
-    ru: { gallery: "Галерея", map: "Карта", call: "Связаться с продавцом", filter: "Фильтры", room: "Комнаты", area: "Площадь", floor: "Этаж", bType: "Тип здания", landmark: "Ориентир", desc: "Описание", search: "Поиск...", latest: "Объявления о продаже" },
-    en: { gallery: "Gallery", map: "Map", call: "Contact Seller", filter: "Filters", room: "Rooms", area: "Area", floor: "Floor", bType: "Building Type", landmark: "Landmark", desc: "Description", search: "Search...", latest: "Listings for sale" }
-  }
-  const t = T[lang]
+  const t = TRANSLATIONS[lang]
 
   useEffect(() => {
     fetch("/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=" + Date.now())
@@ -103,17 +156,28 @@ export default function Map() {
     return true
   })
 
-  const sortedHouses = [...filteredHouses].sort((a, b) => (parseInt(a.price.replace(/\D/g,""))||0) - (parseInt(b.price.replace(/\D/g,""))||0))
+  const sortedHouses = [...filteredHouses].sort((a, b) => (parseInt(a.price.replace(/\D/g, "")) || 0) - (parseInt(b.price.replace(/\D/g, "")) || 0))
   const floorLabel = (h: House) => !h.floor ? '—' : h.totalFloors ? `${h.floor}/${h.totalFloors}` : `${h.floor}`
 
-  const inp = (s?: any) => ({ background: '#f3f4f6', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', outline: 'none', fontWeight: 600, color: '#111', fontSize: 15, width: '100%', boxSizing: 'border-box' as const, ...s })
+  const inputStyle: React.CSSProperties = {
+    background: '#f3f4f6',
+    border: '1.5px solid #e5e7eb',
+    borderRadius: 12,
+    padding: '14px 16px',
+    outline: 'none',
+    fontWeight: 600,
+    color: '#111',
+    fontSize: 15,
+    width: '100%',
+    boxSizing: 'border-box',
+  }
 
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100%', overflow: 'hidden', background: '#f2f2f7' }}>
 
       {/* MAP */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-        <MapContainer center={[41.2995, 69.2401]} zoom={13} zoomControl={false} minZoom={11} maxZoom={18} maxBounds={[[41.0,68.8],[41.6,69.6]]} maxBoundsViscosity={1.0} style={{ height: '100%', width: '100%' }}>
+        <MapContainer center={[41.2995, 69.2401]} zoom={13} zoomControl={false} minZoom={11} maxZoom={18} maxBounds={[[41.0, 68.8], [41.6, 69.6]]} maxBoundsViscosity={1.0} style={{ height: '100%', width: '100%' }}>
           <TileLayer url="https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU" attribution="© Яндекс Карты" />
           <MapController selected={selected} filteredHouses={filteredHouses} isSearching={searchQuery.trim().length > 0} />
           <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
@@ -129,8 +193,8 @@ export default function Map() {
         {view === "map" && !selected && !showDetail && !isFilterOpen && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             style={{ position: 'absolute', top: 20, left: 0, right: 0, zIndex: 10, padding: '0 16px', display: 'flex', gap: 8, pointerEvents: 'none' }}>
-            <button onClick={() => setView("gallery")} style={{ pointerEvents: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '10px 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)', flexShrink: 0 }}>
-              <svg width="20" height="20" fill="none" stroke="#000" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            <button onClick={() => setView("gallery")} style={{ pointerEvents: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '10px 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)', flexShrink: 0, cursor: 'pointer' }}>
+              <svg width="20" height="20" fill="none" stroke="#000" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <div style={{ flex: 1, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, display: 'flex', alignItems: 'center', padding: '8px 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)', pointerEvents: 'auto' }}>
               <input type="text" placeholder={t.search} style={{ background: 'none', border: 'none', outline: 'none', width: '100%', fontSize: 13, fontWeight: 700, color: '#111' }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -157,7 +221,7 @@ export default function Map() {
               <div style={{ display: 'flex', gap: 6 }}>
                 <button style={{ flex: 1, background: '#FFD600', color: '#000', fontWeight: 900, padding: '12px 0', borderRadius: 14, fontSize: 13, border: '1px solid #e6c200', cursor: 'pointer' }}>{t.gallery}</button>
                 <button onClick={() => setView("map")} style={{ flex: 1, background: '#f3f4f6', color: '#333', fontWeight: 900, padding: '12px 0', borderRadius: 14, fontSize: 13, border: '1px solid #e5e7eb', cursor: 'pointer' }}>{t.map}</button>
-                <button onClick={() => setIsFilterOpen(true)} style={{ position: 'relative', flex: 0.8, background: '#f3f4f6', color: '#333', fontWeight: 900, padding: '12px 0', borderRadius: 14, fontSize: 13, border: '1px solid #e5e7eb', cursor: 'pointer' }}>
+                <button onClick={() => { setFilters(appliedFilters); setIsFilterOpen(true) }} style={{ position: 'relative', flex: 0.8, background: '#f3f4f6', color: '#333', fontWeight: 900, padding: '12px 0', borderRadius: 14, fontSize: 13, border: '1px solid #e5e7eb', cursor: 'pointer' }}>
                   {t.filter}
                   {activeFilterCount > 0 && <span style={{ position: 'absolute', top: -6, right: -6, background: '#FFD600', color: '#000', width: 18, height: 18, borderRadius: '50%', fontSize: 10, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{activeFilterCount}</span>}
                 </button>
@@ -174,7 +238,7 @@ export default function Map() {
                     <img src={h.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     {h.hot && <span style={{ position: 'absolute', top: 6, right: 6, background: '#FFD600', color: '#000', fontSize: 9, fontWeight: 900, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>TOP</span>}
                     {h.discount ? <span style={{ position: 'absolute', top: 6, left: 6, background: '#dc2626', color: '#fff', fontSize: 9, fontWeight: 900, padding: '2px 6px', borderRadius: 4 }}>-{h.discount}%</span> : null}
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)' }}/>
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)' }} />
                     <span style={{ position: 'absolute', bottom: 6, right: 6, color: '#fff', fontWeight: 700, fontSize: 10 }}>{h.area ? h.area + ' m²' : ''}</span>
                   </div>
                   <div style={{ padding: 10 }}>
@@ -185,7 +249,7 @@ export default function Map() {
                   </div>
                 </div>
               ))}
-              {sortedHouses.length === 0 && <div style={{ gridColumn: 'span 2', textAlign: 'center', color: '#9ca3af', padding: '40px 0', fontWeight: 700 }}>Hech nima topilmadi...</div>}
+              {sortedHouses.length === 0 && <div style={{ gridColumn: 'span 2', textAlign: 'center', color: '#9ca3af', padding: '40px 0', fontWeight: 700 }}>{t.noResults}</div>}
             </div>
           </motion.div>
         )}
@@ -205,7 +269,7 @@ export default function Map() {
                   {selected.images && selected.images.length > 0 ? selected.images.map((img, idx) => (
                     <div key={idx} style={{ minWidth: '100%', height: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0 }}>
                       <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>{idx+1} / {selected.images?.length}</div>
+                      <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>{idx + 1} / {selected.images?.length}</div>
                     </div>
                   )) : <div style={{ minWidth: '100%', height: '100%', flexShrink: 0 }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
                   {selected.crmId && <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, zIndex: 10 }}>ID: {selected.crmId}</div>}
@@ -232,12 +296,12 @@ export default function Map() {
                 {selected.images && selected.images.length > 0 ? selected.images.map((img, idx) => (
                   <div key={idx} style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0, maxHeight: '60vh' }}>
                     <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} />
-                    <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>{idx+1} / {selected.images?.length}</div>
+                    <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>{idx + 1} / {selected.images?.length}</div>
                   </div>
                 )) : <div style={{ minWidth: '100%', flexShrink: 0, maxHeight: '60vh' }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} /></div>}
               </div>
               <button onClick={() => { setShowDetail(false); if (view === "gallery") setSelected(null) }} style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, width: 40, height: 40, background: 'rgba(0,0,0,0.4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
-                <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
+                <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
               </button>
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '40px 20px 20px', background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)', pointerEvents: 'none' }}>
                 {selected.crmId && <span style={{ background: '#FFD600', color: '#000', fontWeight: 900, padding: '4px 10px', borderRadius: 6, fontSize: 11, textTransform: 'uppercase', display: 'inline-block', marginBottom: 10 }}>ID: {selected.crmId}</span>}
@@ -259,12 +323,12 @@ export default function Map() {
                   <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{selected.rooms || "—"}</span>
                   <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.room}</span>
                 </div>
-                <div style={{ width: 1, height: 40, background: '#e5e7eb' }}/>
+                <div style={{ width: 1, height: 40, background: '#e5e7eb' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{selected.area ? selected.area + " m²" : "—"}</span>
                   <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.area}</span>
                 </div>
-                <div style={{ width: 1, height: 40, background: '#e5e7eb' }}/>
+                <div style={{ width: 1, height: 40, background: '#e5e7eb' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{floorLabel(selected)}</span>
                   <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.floor}</span>
@@ -300,88 +364,171 @@ export default function Map() {
         )}
       </AnimatePresence>
 
-      {/* FILTER */}
+      {/* FILTER — yangi dizayn */}
       <AnimatePresence>
         {isFilterOpen && (
-          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            style={{ position: 'absolute', inset: 0, zIndex: 4000, background: '#fff', overflowY: 'auto' }}>
-
-            <div style={{ position: 'sticky', top: 0, background: '#fff', padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', zIndex: 10 }}>
-              <h2 style={{ fontSize: 26, fontWeight: 900, color: '#000', margin: 0 }}>Filtrlar</h2>
+          <motion.div
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            style={{ position: 'absolute', inset: 0, zIndex: 4000, background: '#fff', display: 'flex', flexDirection: 'column' }}
+          >
+            {/* Header */}
+            <div style={{ padding: '20px 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
+              <h2 style={{ fontSize: 26, fontWeight: 900, color: '#000', margin: 0 }}>{t.filterTitle}</h2>
               <button onClick={() => setIsFilterOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <svg width="28" height="28" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <svg width="28" height="28" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div style={{ padding: '20px 20px 140px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* Scrollable body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0' }}>
 
               {/* Kvartira turi */}
-              <div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Kvartira turi</p>
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.apartType}</p>
                 <div style={{ display: 'flex', gap: 10 }}>
                   {[
-                    { value: 'Novostroyka', label: 'Yangi bino' },
-                    { value: 'Vtorichka', label: "Ikkinchi qo'l" },
+                    { value: 'Novostroyka', label: t.newBuilding },
+                    { value: 'Vtorichka', label: t.secondary },
                   ].map(type => (
-                    <button key={type.value} onClick={() => setFilters(f => ({...f, buildingType: f.buildingType === type.value ? '' : type.value}))}
-                      style={{ flex: 1, padding: '14px 0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', border: filters.buildingType === type.value ? '2px solid #FFD600' : '1.5px solid #e5e7eb', background: filters.buildingType === type.value ? '#FFF9E0' : '#f3f4f6', color: filters.buildingType === type.value ? '#000' : '#555', transition: 'all 0.15s' }}>
+                    <button
+                      key={type.value}
+                      onClick={() => setFilters(f => ({ ...f, buildingType: f.buildingType === type.value ? '' : type.value }))}
+                      style={{
+                        flex: 1, padding: '14px 0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                        border: filters.buildingType === type.value ? '2px solid #000' : '1.5px solid #e5e7eb',
+                        background: filters.buildingType === type.value ? '#f9fafb' : '#f3f4f6',
+                        color: '#111',
+                        transition: 'all 0.15s',
+                      }}
+                    >
                       {type.label}
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Tuman */}
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.tuman}</p>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={filters.tuman}
+                    onChange={e => setFilters(f => ({ ...f, tuman: e.target.value }))}
+                    style={{
+                      ...inputStyle,
+                      appearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5'%3E%3Cpath d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 16px center',
+                      paddingRight: 44,
+                    }}
+                  >
+                    <option value="">{t.tumanPlaceholder}</option>
+                    {TUMANS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
+                  </select>
+                </div>
+              </div>
+
               {/* Xonalar soni */}
-              <div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Xonalar soni</p>
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.rooms}</p>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <input type="number" value={filters.roomsFrom} onChange={e => setFilters(f => ({...f, roomsFrom: e.target.value}))} style={inp({ flex: 1 })} />
-                  <input type="number" value={filters.roomsTo} onChange={e => setFilters(f => ({...f, roomsTo: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input
+                    type="number"
+                    value={filters.roomsFrom}
+                    onChange={e => setFilters(f => ({ ...f, roomsFrom: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <input
+                    type="number"
+                    value={filters.roomsTo}
+                    onChange={e => setFilters(f => ({ ...f, roomsTo: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
                 </div>
               </div>
 
               {/* Qavat */}
-              <div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Qavat</p>
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.floorLabel}</p>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <input type="number" value={filters.floorFrom} onChange={e => setFilters(f => ({...f, floorFrom: e.target.value}))} style={inp({ flex: 1 })} />
-                  <input type="number" value={filters.floorTo} onChange={e => setFilters(f => ({...f, floorTo: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input
+                    type="number"
+                    value={filters.floorFrom}
+                    onChange={e => setFilters(f => ({ ...f, floorFrom: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <input
+                    type="number"
+                    value={filters.floorTo}
+                    onChange={e => setFilters(f => ({ ...f, floorTo: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
                 </div>
               </div>
 
               {/* Maydon */}
-              <div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Maydon, m²</p>
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.area2}</p>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <input type="number" value={filters.areaFrom} onChange={e => setFilters(f => ({...f, areaFrom: e.target.value}))} style={inp({ flex: 1 })} />
-                  <input type="number" value={filters.areaTo} onChange={e => setFilters(f => ({...f, areaTo: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input
+                    type="number"
+                    value={filters.areaFrom}
+                    onChange={e => setFilters(f => ({ ...f, areaFrom: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <input
+                    type="number"
+                    value={filters.areaTo}
+                    onChange={e => setFilters(f => ({ ...f, areaTo: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
                 </div>
               </div>
 
               {/* Narx */}
-              <div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>Narx ($)</p>
+              <div style={{ marginBottom: 32 }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.price}</p>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <input type="number" value={filters.priceFrom} onChange={e => setFilters(f => ({...f, priceFrom: e.target.value}))} style={inp({ flex: 1 })} />
-                  <input type="number" value={filters.priceTo} onChange={e => setFilters(f => ({...f, priceTo: e.target.value}))} style={inp({ flex: 1 })} />
+                  <input
+                    type="number"
+                    value={filters.priceFrom}
+                    onChange={e => setFilters(f => ({ ...f, priceFrom: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <input
+                    type="number"
+                    value={filters.priceTo}
+                    onChange={e => setFilters(f => ({ ...f, priceTo: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
                 </div>
               </div>
+
             </div>
 
-            {/* Tugmalar */}
-            <div style={{ position: 'fixed', bottom: 0, left: 0, width: '100%', background: '#fff', borderTop: '1px solid #f0f0f0', padding: '16px 20px', boxSizing: 'border-box', display: 'flex', gap: 12 }}>
-              <button onClick={() => { setFilters(emptyFilters); setAppliedFilters(emptyFilters) }}
-                style={{ flex: 0.4, background: '#f3f4f6', color: '#555', fontWeight: 700, padding: '16px 0', borderRadius: 16, fontSize: 15, border: '1.5px solid #e5e7eb', cursor: 'pointer' }}>
-                Tozalash
+            {/* Footer buttons */}
+            <div style={{ padding: '16px 20px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 12, flexShrink: 0, background: '#fff' }}>
+              <button
+                onClick={() => { setFilters(emptyFilters); setAppliedFilters(emptyFilters) }}
+                style={{ flex: 0.45, background: '#f3f4f6', color: '#555', fontWeight: 700, padding: '16px 0', borderRadius: 16, fontSize: 15, border: '1.5px solid #e5e7eb', cursor: 'pointer' }}
+              >
+                {t.clear}
               </button>
-              <button onClick={() => { setAppliedFilters(filters); setIsFilterOpen(false) }}
-                style={{ flex: 1, background: '#FFD600', color: '#000', fontWeight: 900, padding: '16px 0', borderRadius: 16, fontSize: 16, border: 'none', cursor: 'pointer' }}>
-                Qo'llash
+              <button
+                onClick={() => { setAppliedFilters(filters); setIsFilterOpen(false) }}
+                style={{ flex: 1, background: '#FFD600', color: '#000', fontWeight: 900, padding: '16px 0', borderRadius: 16, fontSize: 16, border: 'none', cursor: 'pointer' }}
+              >
+                {t.apply}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   )
 }
