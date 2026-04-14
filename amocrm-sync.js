@@ -8,27 +8,7 @@ const BASE_URL = `https://${SUBDOMAIN}.amocrm.ru/api/v4`;
 
 // Faqat "Mulk mini app" ustunidagi leadlarni ol
 const PIPELINE_ID = 10512362;
-const STATUS_ID = 85060666; // "Mulk mini app" status
-
-async function fetchLeads(page = 1) {
-  // Pipeline bo'yicha filter - status ID ni kodda filtrlaymiz
-  const url = `${BASE_URL}/leads?limit=50&page=${page}&with=custom_fields&filter[pipeline_id][]=${PIPELINE_ID}`;
-  const res = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${TOKEN}` }
-  });
-  if (res.status === 204) return null;
-  if (!res.ok) {
-    console.error(`[SYNC] AmoCRM error: ${res.status}`);
-    return null;
-  }
-  const data = await res.json();
-  // Faqat "Mulk mini app" statusidagi leadlarni qoldir
-  if (data._embedded?.leads) {
-    data._embedded.leads = data._embedded.leads.filter(l => l.status_id === STATUS_ID);
-  }
-  return data;
-}
-
+const STATUS_ID = 85060666;
 
 function parseCustomFields(fields) {
   let rooms = null, area = null, floor = null, totalFloors = null;
@@ -40,7 +20,8 @@ function parseCustomFields(fields) {
     'xona': 'rooms', 'хона': 'rooms', 'комнат': 'rooms',
     'qavat': 'floor', 'этаж': 'floor', 'floor': 'floor',
     'umumiy qavat': 'totalFloors', 'всего этажей': 'totalFloors',
-    'yuzasi': 'area', 'maydon': 'area', 'sotix': 'area', 'площадь': 'area', 'кв.м': 'area',
+    'yuzasi': 'area', 'maydon': 'area', 'sotix': 'area',
+    'площадь': 'area', 'кв.м': 'area',
     'описание': 'description', 'izoh': 'description',
     'район': 'landmark', 'tuman': 'landmark',
     'bino turi': 'buildingType', 'тип': 'buildingType',
@@ -87,7 +68,6 @@ async function syncLeads() {
   let totalSynced = 0;
 
   while (true) {
-    // To'g'ri AmoCRM filter sintaksisi: filter[statuses][0][pipeline_id] va filter[statuses][0][status_id]
     const params = new URLSearchParams({
       limit: 50,
       page: page,
@@ -95,23 +75,25 @@ async function syncLeads() {
       'filter[statuses][0][pipeline_id]': PIPELINE_ID,
       'filter[statuses][0][status_id]': STATUS_ID,
     });
+
     const url = `${BASE_URL}/leads?${params.toString()}`;
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
-    
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+
     if (res.status === 204) break;
     if (!res.ok) {
       console.error(`[SYNC] AmoCRM error: ${res.status}`);
       break;
     }
-    
+
     const data = await res.json();
     const leads = data._embedded?.leads || [];
     if (!leads.length) break;
 
-    console.log(`[SYNC] Page ${page}: ${leads.length} ta "Mulk mini app" leid topildi`);
+    console.log(`[SYNC] Page ${page}: ${leads.length} ta lead topildi`);
 
     for (const lead of leads) {
-
       const crmId = String(lead.id);
       const title = lead.name || 'Yangi Mulk';
       const rawPrice = lead.price || 0;
@@ -120,9 +102,25 @@ async function syncLeads() {
       const { rooms, area, floor, totalFloors, description, landmark, buildingType } =
         parseCustomFields(lead.custom_fields_values);
 
+      // Narx o'zgardi — oldPrice va discount hisoblash
+      const existing = await prisma.house.findUnique({ where: { crmId } });
+      let oldPrice = null;
+      let discount = null;
+
+      if (existing && existing.price !== price) {
+        const oldNum = parseInt(existing.price.replace(/\D/g, ''));
+        const newNum = parseInt(String(rawPrice));
+        if (newNum > 0 && oldNum > 0 && newNum < oldNum) {
+          oldPrice = existing.price;
+          discount = Math.round(((oldNum - newNum) / oldNum) * 100);
+        }
+      }
+
       const updateData = {
-        price, // Narx har doim yangilanadi!
+        price, // Narx HAR DOIM yangilanadi
         title,
+        ...(oldPrice ? { oldPrice } : {}),
+        ...(discount ? { discount } : {}),
         ...(rooms !== null ? { rooms } : {}),
         ...(area !== null ? { area } : {}),
         ...(floor !== null ? { floor } : {}),
@@ -136,6 +134,7 @@ async function syncLeads() {
         crmId,
         title,
         price,
+        // Koordinatalar tasodifiy — keyinchalik bot orqali aniqlanadi
         lat: 41.311081 + (Math.random() * 0.06),
         lng: 69.240562 + (Math.random() * 0.06),
         rooms: rooms || 0,
@@ -160,50 +159,15 @@ async function syncLeads() {
     page++;
   }
 
-  // --- CLEANUP LOGIC ---
-  // Hozirgi "Mulk mini app" statusida bo'lmagan (masalan, "Kelishilgan"ga o'tgan) uylarni o'chirish
-  // Faqat AmoCRM lead IDlar (numeric) bo'lgan uylarni tekshiramiz
-  const allSyncedCrmIds = [];
-  let cleanupPage = 1;
-  while(true) {
-    const params = new URLSearchParams({
-        limit: 50, page: cleanupPage,
-        'filter[statuses][0][pipeline_id]': PIPELINE_ID,
-        'filter[statuses][0][status_id]': STATUS_ID,
-    });
-    const res = await fetch(`${BASE_URL}/leads?${params.toString()}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
-    if (res.status === 204) break;
-    const data = await res.json();
-    const leads = data._embedded?.leads || [];
-    if (!leads.length) break;
-    leads.forEach(l => allSyncedCrmIds.push(String(l.id)));
-    if (!data._links?.next) break;
-    cleanupPage++;
-  }
-
-  if (allSyncedCrmIds.length > 0) {
-    const deleted = await prisma.house.deleteMany({
-      where: {
-        crmId: { notIn: allSyncedCrmIds },
-        // Bot orqali qo'shilgan entrylarni emas, faqat numeric CRM IDli uylarni o'chiramiz
-        AND: [
-            { crmId: { not: null } },
-            { crmId: { not: { startsWith: 'Nr' } } }
-        ]
-      }
-    });
-    console.log(`[SYNC] ${deleted.count} ta sotilgan yoki statusi o'zgargan uy o'chirildi.`);
-  }
-
-  console.log(`[SYNC] Tayyor! ${totalSynced} ta "Mulk mini app" leid yangilandi.`);
+  console.log(`[SYNC] Tayyor! ${totalSynced} ta lead yangilandi.`);
 }
 
-// Darhol ishla
+// Darhol ishga tush
 syncLeads().catch(console.error);
 
-// Har 5 daqiqada qayta ishla
+// Har 2 daqiqada qayta ishla (120 soniya)
 setInterval(() => {
   syncLeads().catch(console.error);
-}, 5 * 60 * 1000);
+}, 2 * 60 * 1000);
 
-console.log('[SYNC] Ishga tushdi. Har 5 daqiqada "Mulk mini app" statusidan avtosync qiladi.');
+console.log('[SYNC] Ishga tushdi. Har 2 daqiqada "Mulk mini app" statusidan avtosync qiladi.');
