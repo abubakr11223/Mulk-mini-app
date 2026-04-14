@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../../../../lib/prisma'
 
-const prisma = new PrismaClient()
-
-// To prevent SQLite read-modify-write race conditions when Telegram fires 4 webhooks concurrently
 const globalThisAny = globalThis as any;
 if (!globalThisAny.telegramLock) {
   globalThisAny.telegramLock = Promise.resolve();
@@ -25,7 +22,7 @@ export async function POST(req: Request) {
 
     if (!BOT_TOKEN) return NextResponse.json({ error: "Missing token" }, { status: 500 })
 
-    // Non-admin fallback
+    // Admin bo'lmagan foydalanuvchilar
     if (!ADMIN_ID || fromId.toString() !== ADMIN_ID) {
       if (text === "/start") {
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -33,46 +30,53 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: chatId,
-            text: "Assalomu alaykum! Mulk qidirish uchun ilovaga kiring 👇",
-            reply_markup: {
-              inline_keyboard: [[{ text: "🏠 Ilovaga kirish", web_app: { url: "https://surgery-pretty-seasonal-maritime.trycloudflare.com" } }]]
-            }
+            text: "Assalomu alaykum! Mulk qidirish uchun pastdagi Mini App tugmasini bosing 👇"
           })
         })
       }
       return NextResponse.json({ ok: true })
     }
 
-    // Admin photo handler - FAQAT mavjud uyga rasm qo'shadi, yangi uy yaratmaydi
+    // ADMIN: Rasm yuklash
     if (photos && photos.length > 0) {
       await globalThisAny.telegramLock;
       let release: any;
       globalThisAny.telegramLock = new Promise(resolve => release = resolve);
 
       try {
-        const bestPhoto = photos[photos.length - 1] 
+        const bestPhoto = photos[photos.length - 1]
         const fileId = bestPhoto.file_id
         const mediaGroupId = msg.media_group_id
 
-        let crmIdMatch = text.match(/\d{5,}/)  // Kamida 5 raqamli ID
+        let crmIdMatch = text.match(/\d{4,}/)
         let crmId = crmIdMatch ? crmIdMatch[0] : null
         let house = null
 
         if (crmId) {
-          // Faqat AmoCRM dan kelgan (amocrm-sync tomonidan yaratilgan) uyni qidiradi
           house = await prisma.house.findUnique({ where: { crmId } })
+
           if (!house) {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, text: `❌ ID: ${crmId} bazada topilmadi. Avval AmoCRM da "Mulk mini app" ustuniga qo'ying!` })
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: `❌ ID: ${crmId} bazada topilmadi.\n\nAvval AmoCRM da "Mulk mini app" ustuniga qo'ying va sync bo'lishini kuting!`
+              })
             })
             return NextResponse.json({ ok: true })
           }
+
           if (mediaGroupId) {
-            await prisma.house.update({ where: { id: house.id }, data: { mediaGroupId } })
+            await prisma.house.update({
+              where: { id: house.id },
+              data: { mediaGroupId }
+            })
           }
+
         } else if (mediaGroupId) {
           house = await prisma.house.findFirst({ where: { mediaGroupId } })
+
           if (!house) {
             await new Promise(r => setTimeout(r, 2000));
             house = await prisma.house.findFirst({ where: { mediaGroupId } })
@@ -81,39 +85,85 @@ export async function POST(req: Request) {
 
         if (house) {
           const imgUrl = `/api/image?id=${fileId}`
-          let newImages = house.images || []
-          if (!newImages.includes(imgUrl)) newImages.push(imgUrl)
-          let updateData: any = { images: newImages }
-          if (!house.image || house.image.includes('unsplash.com')) updateData.image = imgUrl
-          await prisma.house.update({ where: { id: house.id }, data: updateData })
+          const currentImages: string[] = house.images || []
+
+          if (!currentImages.includes(imgUrl)) {
+            const newImages = [...currentImages, imgUrl]
+            const updateData: any = { images: newImages }
+            if (!house.image || house.image.includes('unsplash.com')) {
+              updateData.image = imgUrl
+            }
+            await prisma.house.update({
+              where: { id: house.id },
+              data: updateData
+            })
+          }
+
           if (crmId) {
+            const totalImages = (house.images?.length || 0) + 1
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, text: `✅ ID: ${house.crmId} mulkka rasm qo'shildi!` })
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: `✅ ID: ${house.crmId} — "${house.title}" mulkka rasm qo'shildi!\n📸 Jami rasmlar: ${totalImages} ta`
+              })
             })
           }
         }
+
       } finally {
         release();
       }
+
     } else {
-        if (text === "/start") {
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-               method: "POST", headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({ 
-                 chat_id: chatId, 
-                 text: `Admin Xush kelibsiz!\n\nRasmlarni 4 ta qilib bitta guruh (album) holida jo'nating va *IZOH* (Caption) ga aynan CRM dagi ID raqamini qo'shib yuboring! Masalan: 1102`,
-                 reply_markup: {
-                   inline_keyboard: [[{ text: "🏠 Ilovaga kirish", web_app: { url: "https://surgery-pretty-seasonal-maritime.trycloudflare.com" } }]]
-                 }
-               })
+      if (text === "/start") {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: `👋 Admin, xush kelibsiz!\n\n📸 Rasm yuklash:\n1. Rasmlarni album qilib yuboring\n2. Caption ga CRM ID yozing\n\nMasalan: <b>38545823</b>\n\n🗑 Rasmlarni o'chirish: <b>/delete_images 38545823</b>`,
+            parse_mode: "HTML"
+          })
+        })
+      }
+
+      const deleteMatch = text.match(/^\/delete_images\s+(\d+)/)
+      if (deleteMatch) {
+        const crmId = deleteMatch[1]
+        const house = await prisma.house.findUnique({ where: { crmId } })
+        if (house) {
+          await prisma.house.update({
+            where: { crmId },
+            data: {
+              images: [],
+              image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",
+              mediaGroupId: null
+            }
+          })
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `🗑️ ID: ${crmId} — "${house.title}" mulkning barcha rasmlari o'chirildi.`
             })
+          })
+        } else {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, text: `❌ ID: ${crmId} topilmadi.` })
+          })
         }
+      }
     }
 
     return NextResponse.json({ ok: true })
+
   } catch (err) {
-    console.error(err)
+    console.error('[Telegram Webhook Error]', err)
     return NextResponse.json({ error: 'Webhook Error' }, { status: 500 })
   }
-}
+} 
