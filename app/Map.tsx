@@ -353,16 +353,17 @@ export default function Map() {
                   <p style={{ fontSize: 13, color: '#999', fontWeight: 700, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.8 }}>🗺 Manzil xaritada</p>
                   <a href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`} target="_blank"
                     style={{ display: 'block', borderRadius: 18, overflow: 'hidden', border: '1.5px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}>
-                    <div style={{ position: 'relative', width: '100%', height: 240, background: '#e8f0e8', borderRadius: 0, overflow: 'hidden' }}>
+                    <div style={{ position: 'relative', width: '100%', height: 240, overflow: 'hidden' }}>
                       <iframe
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${selected.lng - 0.005},${selected.lat - 0.004},${selected.lng + 0.005},${selected.lat + 0.004}&layer=mapnik&marker=${selected.lat},${selected.lng}`}
+                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng},${selected.lat}&z=16&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ&controls=`}
                         style={{ width: '100%', height: '100%', border: 'none' }}
+                        allowFullScreen
                       />
-                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -110%)', zIndex: 10, pointerEvents: 'none' }}>
-                        <div style={{ background: '#FFD600', color: '#000', fontWeight: 900, fontSize: 13, padding: '5px 10px', borderRadius: 8, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', border: '1px solid rgba(0,0,0,0.1)' }}>
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -130%)', zIndex: 10, pointerEvents: 'none' }}>
+                        <div style={{ background: '#e63946', color: '#fff', fontWeight: 900, fontSize: 13, padding: '5px 12px', borderRadius: 8, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
                           {selected.price}
                         </div>
-                        <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: '7px solid #FFD600', margin: '0 auto' }} />
+                        <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: '7px solid #e63946', margin: '0 auto' }} />
                       </div>
                     </div>
                     <div style={{ background: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid #f0f0f0' }}>
