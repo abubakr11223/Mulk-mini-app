@@ -19,7 +19,7 @@ function parseCustomFields(fields) {
   const FIELD_MAP = {
     'xona': 'rooms', 'хона': 'rooms', 'комнат': 'rooms',
     'qavat': 'floor', 'этаж': 'floor', 'floor': 'floor',
-    'всего этажей': 'totalFloors', 'этажность': 'totalFloors', 'Этажность': 'totalFloors'
+    'umumiy qavat': 'totalFloors', 'всего этажей': 'totalFloors',
     'yuzasi': 'area', 'maydon': 'area', 'sotix': 'area',
     'площадь': 'area', 'кв.м': 'area',
     'описание': 'description', 'izoh': 'description',
