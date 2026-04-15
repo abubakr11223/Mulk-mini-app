@@ -280,114 +280,112 @@ export default function Map() {
               </div>
             </div>
             <div style={{ padding: '20px 20px 112px', background: '#fff' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-                <p style={{ fontSize: 32, fontWeight: 900, color: '#000', margin: 0 }}>{selected.price}</p>
-                {selected.discount && selected.oldPrice && (
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ color: '#ef4444', fontWeight: 900, fontSize: 13 }}>-{selected.discount}%</span>
-                    <span style={{ color: '#9ca3af', fontSize: 12, textDecoration: 'line-through' }}>{selected.oldPrice}</span>
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', background: '#fff', padding: 16, borderRadius: 16, border: '2px solid #f0f0f0', marginBottom: 32, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{selected.rooms || "—"}</span>
-                  <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.room}</span>
-                </div>
-                <div style={{ width: 1, height: 40, background: '#e5e7eb' }} />
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{selected.area ? selected.area + " m²" : "—"}</span>
-                  <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.area}</span>
-                </div>
-                <div style={{ width: 1, height: 40, background: '#e5e7eb' }} />
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 900, fontSize: 18, color: '#111' }}>{floorLabel(selected)}</span>
-                  <span style={{ color: '#555', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{t.floor}</span>
+              {/* Narx */}
+              <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f0f0f0' }}>
+                <p style={{ fontSize: 13, color: '#888', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Narx</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <p style={{ fontSize: 36, fontWeight: 900, color: '#000', margin: 0 }}>{selected.price}</p>
+                  {selected.discount && selected.oldPrice && (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ color: '#ef4444', fontWeight: 900, fontSize: 14, background: '#fef2f2', padding: '2px 8px', borderRadius: 6 }}>-{selected.discount}%</span>
+                      <span style={{ color: '#9ca3af', fontSize: 13, textDecoration: 'line-through', marginTop: 2 }}>{selected.oldPrice}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div style={{ marginBottom: 32 }}>
+
+              {/* Asosiy parametrlar — katta kartochkalar */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+                <div style={{ background: '#f9fafb', borderRadius: 14, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #f0f0f0' }}>
+                  <span style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.3 }}>Xonalar</span>
+                  <span style={{ fontSize: 26, fontWeight: 900, color: '#111', lineHeight: 1 }}>{selected.rooms || '—'}</span>
+                  <span style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>xona</span>
+                </div>
+                <div style={{ background: '#f9fafb', borderRadius: 14, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #f0f0f0' }}>
+                  <span style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.3 }}>Maydon</span>
+                  <span style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1 }}>{selected.area || '—'}</span>
+                  <span style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>m²</span>
+                </div>
+                <div style={{ background: '#f9fafb', borderRadius: 14, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #f0f0f0' }}>
+                  <span style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.3 }}>Qavat</span>
+                  <span style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1 }}>{selected.floor || '—'} / {selected.totalFloors || '—'}</span>
+                  <span style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>etaj / jami</span>
+                </div>
+              </div>
+
+              {/* Qo'shimcha ma'lumotlar — ro'yxat */}
+              <div style={{ background: '#f9fafb', borderRadius: 16, overflow: 'hidden', border: '1.5px solid #f0f0f0', marginBottom: 20 }}>
                 {selected.buildingType && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <span style={{ color: '#555', fontWeight: 700, fontSize: 14 }}>{t.bType}</span>
-                    <span style={{ color: '#111', fontWeight: 900, fontSize: 15 }}>{selected.buildingType}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #f0f0f0', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff7e0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="18" height="18" fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 12, color: '#888', margin: 0, fontWeight: 600 }}>Bino turi</p>
+                      <p style={{ fontSize: 16, color: '#111', margin: 0, fontWeight: 800 }}>{selected.buildingType}</p>
+                    </div>
                   </div>
                 )}
                 {selected.landmark && (
-                  <div style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <span style={{ color: '#555', fontWeight: 700, fontSize: 14 }}>{t.landmark}</span>
-                      <span style={{ color: '#111', fontWeight: 900, fontSize: 15, textAlign: 'right', maxWidth: '60%' }}>{selected.landmark}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #f0f0f0', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="18" height="18" fill="#e63946" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
                     </div>
-                    <a
-                      href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`}
-                      target="_blank"
-                      style={{ display: 'block', borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}
-                    >
-                      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', maxWidth: 'calc(100% - 20px)' }}>
-                        <svg width="12" height="12" fill="#e63946" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#111', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{selected.landmark}</span>
-                      </div>
-                      <img
-                        src={`https://static-maps.yandex.ru/v1?ll=${selected.lng},${selected.lat}&z=16&size=600,220&l=map&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ`}
-                        style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
-                        onError={(e) => {
-                          const t = e.currentTarget
-                          t.style.display = 'none'
-                          const next = t.nextElementSibling as HTMLElement
-                          if (next) next.style.display = 'flex'
-                        }}
-                      />
-                      <div style={{ display: 'none', height: 220, background: '#f3f4f6', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
-                        <svg width="32" height="32" fill="none" stroke="#999" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        <span style={{ fontSize: 13, color: '#999', fontWeight: 600 }}>Xaritada ko'rish</span>
-                      </div>
-                      <div style={{ background: '#f9fafb', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #f0f0f0' }}>
-                        <svg width="14" height="14" fill="none" stroke="#555" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        <span style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>Yandex Maps da ochish</span>
-                        <svg width="12" height="12" fill="none" stroke="#999" strokeWidth="2" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                      </div>
-                    </a>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 12, color: '#888', margin: 0, fontWeight: 600 }}>Orientir (mo'ljal)</p>
+                      <p style={{ fontSize: 16, color: '#111', margin: 0, fontWeight: 800 }}>{selected.landmark}</p>
+                    </div>
                   </div>
                 )}
-                {!selected.landmark && selected.lat && (
-                  <div style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <a
-                      href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`}
-                      target="_blank"
-                      style={{ display: 'block', borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}
-                    >
-                      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                        <svg width="12" height="12" fill="#e63946" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>{selected.title}</span>
-                      </div>
-                      <img
-                        src={`https://static-maps.yandex.ru/v1?ll=${selected.lng},${selected.lat}&z=16&size=600,220&l=map&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ`}
-                        style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
-                        onError={(e) => {
-                          const t = e.currentTarget
-                          t.style.display = 'none'
-                          const next = t.nextElementSibling as HTMLElement
-                          if (next) next.style.display = 'flex'
-                        }}
-                      />
-                      <div style={{ display: 'none', height: 220, background: '#f3f4f6', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
-                        <svg width="32" height="32" fill="none" stroke="#999" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        <span style={{ fontSize: 13, color: '#999', fontWeight: 600 }}>Xaritada ko'rish</span>
-                      </div>
-                      <div style={{ background: '#f9fafb', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #f0f0f0' }}>
-                        <svg width="14" height="14" fill="none" stroke="#555" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        <span style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>Yandex Maps da ochish</span>
-                        <svg width="12" height="12" fill="none" stroke="#999" strokeWidth="2" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                      </div>
-                    </a>
+                {selected.crmId && (
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="18" height="18" fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 12, color: '#888', margin: 0, fontWeight: 600 }}>E'lon raqami</p>
+                      <p style={{ fontSize: 16, color: '#111', margin: 0, fontWeight: 800 }}>#{selected.crmId}</p>
+                    </div>
                   </div>
                 )}
               </div>
+              {/* Xarita */}
+              {selected.lat && (
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 13, color: '#888', fontWeight: 600, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Manzil (xaritada)</p>
+                  <a
+                    href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`}
+                    target="_blank"
+                    style={{ display: 'block', borderRadius: 16, overflow: 'hidden', border: '1.5px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}
+                  >
+                    <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,255,255,0.97)', borderRadius: 8, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', maxWidth: 'calc(100% - 20px)' }}>
+                      <svg width="12" height="12" fill="#e63946" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#111', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{selected.landmark || selected.title}</span>
+                    </div>
+                    <img
+                      src={`https://static-maps.yandex.ru/v1?ll=${selected.lng},${selected.lat}&z=16&size=600,220&l=map&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ`}
+                      style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
+                      onError={(e) => { const el = e.currentTarget; el.style.display = 'none'; const next = el.nextElementSibling as HTMLElement; if (next) next.style.display = 'flex' }}
+                    />
+                    <div style={{ display: 'none', height: 220, background: '#f3f4f6', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                      <svg width="32" height="32" fill="none" stroke="#bbb" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      <span style={{ fontSize: 13, color: '#bbb', fontWeight: 600 }}>Xarita yuklanmadi</span>
+                    </div>
+                    <div style={{ background: '#f9fafb', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #f0f0f0' }}>
+                      <svg width="14" height="14" fill="none" stroke="#555" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      <span style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>Yandex Maps da to'liq ochish</span>
+                      <svg width="12" height="12" fill="none" stroke="#aaa" strokeWidth="2" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </div>
+                  </a>
+                </div>
+              )}
+
+              {/* Tavsif */}
               {selected.description && (
-                <>
-                  <h3 style={{ fontWeight: 900, color: '#111', marginBottom: 12, fontSize: 18 }}>{t.desc}</h3>
-                  <p style={{ color: '#444', lineHeight: 1.7, fontSize: 15 }}>{selected.description}</p>
-                </>
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 13, color: '#888', fontWeight: 600, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ta'rif</p>
+                  <p style={{ color: '#333', lineHeight: 1.8, fontSize: 16, margin: 0 }}>{selected.description}</p>
+                </div>
               )}
             </div>
             <div style={{ position: 'fixed', bottom: 0, left: 0, width: '100%', background: '#fff', borderTop: '1px solid #f0f0f0', padding: 20, zIndex: 20, boxSizing: 'border-box' }}>
