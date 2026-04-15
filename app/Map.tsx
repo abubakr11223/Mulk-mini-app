@@ -262,14 +262,53 @@ export default function Map() {
           <motion.div initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 25, stiffness: 220 }}
             style={{ position: 'absolute', inset: 0, zIndex: 3000, background: '#fff', overflowY: 'auto' }}>
             <div style={{ position: 'relative', width: '100%', background: '#000' }}>
-              <div style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', maxHeight: '60vh' }} className="[&::-webkit-scrollbar]:hidden">
-                {selected.images && selected.images.length > 0 ? selected.images.map((img, idx) => (
-                  <div key={idx} onClick={() => setLightbox({ images: selected.images!, index: idx })} style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'center', flexShrink: 0, maxHeight: '60vh', cursor: 'zoom-in' }}>
-                    <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} />
-                    <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999 }}>{idx + 1} / {selected.images?.length}</div>
-                  </div>
-                )) : <div onClick={() => setLightbox({ images: [selected.image], index: 0 })} style={{ minWidth: '100%', flexShrink: 0, maxHeight: '60vh', cursor: 'zoom-in' }}><img src={selected.image} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh' }} /></div>}
-              </div>
+              {(() => {
+                const imgs = selected.images && selected.images.length > 0 ? selected.images : [selected.image]
+                return (
+                  <>
+                    <div
+                      style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', maxHeight: '60vh', scrollBehavior: 'smooth' }}
+                      className="[&::-webkit-scrollbar]:hidden"
+                      id="detail-slider"
+                    >
+                      {imgs.map((img, idx) => (
+                        <div key={idx} onClick={() => setLightbox({ images: imgs, index: idx })}
+                          style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'start', flexShrink: 0, maxHeight: '60vh', cursor: 'zoom-in' }}>
+                          <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh', display: 'block' }} />
+                        </div>
+                      ))}
+                    </div>
+                    {/* Counter */}
+                    <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 999 }}
+                      id="detail-counter">1 / {imgs.length}</div>
+                    {/* Dots */}
+                    {imgs.length > 1 && (
+                      <div style={{ position: 'absolute', bottom: 60, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, zIndex: 10 }}>
+                        {imgs.map((_, i) => (
+                          <div key={i} id={`dot-${i}`} style={{ width: i === 0 ? 20 : 6, height: 6, borderRadius: 999, background: i === 0 ? '#FFD600' : 'rgba(255,255,255,0.5)', transition: 'all 0.3s' }} />
+                        ))}
+                      </div>
+                    )}
+                    <script dangerouslySetInnerHTML={{
+                      __html: `
+                      (function(){
+                        var sl = document.getElementById('detail-slider');
+                        if(!sl) return;
+                        sl.addEventListener('scroll', function(){
+                          var idx = Math.round(sl.scrollLeft / sl.offsetWidth);
+                          var total = ${imgs.length};
+                          var counter = document.getElementById('detail-counter');
+                          if(counter) counter.textContent = (idx+1) + ' / ' + total;
+                          for(var i=0;i<total;i++){
+                            var dot = document.getElementById('dot-'+i);
+                            if(dot){ dot.style.width = i===idx?'20px':'6px'; dot.style.background = i===idx?'#FFD600':'rgba(255,255,255,0.5)'; }
+                          }
+                        }, {passive:true});
+                      })();
+                    ` }} />
+                  </>
+                )
+              })()}
               <button onClick={() => { setShowDetail(false); if (view === "gallery") setSelected(null) }} style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, width: 40, height: 40, background: 'rgba(0,0,0,0.4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
                 <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
               </button>
@@ -416,7 +455,10 @@ export default function Map() {
                   el.scrollLeft = lightbox.index * el.offsetWidth
                   el.onscroll = () => {
                     const idx = Math.round(el.scrollLeft / el.offsetWidth)
-                    if (idx !== lightbox.index) setLightbox(lb => lb ? { ...lb, index: idx } : null)
+                    const maxIdx = lightbox.images.length - 1
+                    if (idx !== lightbox.index && idx >= 0 && idx <= maxIdx) {
+                      setLightbox(lb => lb ? { ...lb, index: idx } : null)
+                    }
                   }
                 }
               }}>
