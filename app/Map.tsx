@@ -388,7 +388,7 @@ export default function Map() {
                     style={{ display: 'block', borderRadius: 18, overflow: 'hidden', border: '1.5px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}>
                     <div style={{ position: 'relative', width: '100%', height: 240, overflow: 'hidden' }}>
                       <iframe
-                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng},${selected.lat}&z=16&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ&controls=`}
+                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng},${selected.lat}&z=16&lang=uz_UZ&controls=`}
                         style={{ width: '100%', height: '100%', border: 'none' }}
                         allowFullScreen
                       />
