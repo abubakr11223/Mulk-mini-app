@@ -1,28 +1,7 @@
 "use client"
 
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet"
-import MarkerClusterGroup from "react-leaflet-cluster"
-import "leaflet/dist/leaflet.css"
-import { useEffect, useState } from "react"
-import L from "leaflet"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-})
-
-const createPriceIcon = (price: string) => L.divIcon({
-  html: `<div style="position:relative;display:flex;align-items:center;justify-content:center;padding:4px 10px;border-radius:6px;font-weight:900;font-size:13px;background:#FFD600;color:#000;border:1px solid rgba(0,0,0,0.15);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.2)">${price.replace(" ", "")}<div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #FFD600"></div></div>`,
-  className: "",
-})
-
-const createClusterIcon = (cluster: any) => L.divIcon({
-  html: `<div style="background:#FFD600;color:#000;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.2);border:2px solid #fff">${cluster.getChildCount()}</div>`,
-  className: "",
-})
 
 export type House = {
   id: number; crmId: string; lat: number; lng: number; price: string
@@ -31,51 +10,21 @@ export type House = {
   area: number; floor: number; totalFloors?: number; buildingType?: string; landmark?: string
 }
 
-function MapController({ selected, filteredHouses, isSearching }: { selected: House | null, filteredHouses: House[], isSearching: boolean }) {
-  const map = useMap()
-  useEffect(() => {
-    if (selected) { map.flyTo([selected.lat - 0.007, selected.lng], 15, { duration: 0.8 }) }
-    else if (isSearching && filteredHouses.length > 0) {
-      if (filteredHouses.length === 1) { map.flyTo([filteredHouses[0].lat, filteredHouses[0].lng], 15, { duration: 0.6 }) }
-      else { map.flyToBounds(L.latLngBounds(filteredHouses.map(h => [h.lat, h.lng])), { padding: [50, 50], duration: 0.6, maxZoom: 14 }) }
-    }
-  }, [selected, filteredHouses, isSearching, map])
-  return null
-}
-
 const TUMANS = [
-  "Chilonzor tumani",
-  "Yunusobod tumani",
-  "Mirzo Ulug'bek tumani",
-  "Yakkasaroy tumani",
-  "Shayxontohur tumani",
-  "Mirobod tumani",
-  "Sergeli tumani",
-  "Uchtepa tumani",
-  "Olmazor tumani",
-  "Bektemir tumani",
-  "Yangihayot tumani",
-  "Yashnobod tumani",
-  "Almazar tumani",
+  "Chilonzor tumani", "Yunusobod tumani", "Mirzo Ulug'bek tumani",
+  "Yakkasaroy tumani", "Shayxontohur tumani", "Mirobod tumani",
+  "Sergeli tumani", "Uchtepa tumani", "Olmazor tumani",
+  "Bektemir tumani", "Yangihayot tumani", "Yashnobod tumani", "Almazar tumani",
 ]
 
 type Filters = {
-  tuman: string
-  buildingType: string
-  roomsFrom: string
-  roomsTo: string
-  floorFrom: string
-  floorTo: string
-  areaFrom: string
-  areaTo: string
-  priceFrom: string
-  priceTo: string
+  tuman: string; buildingType: string; roomsFrom: string; roomsTo: string
+  floorFrom: string; floorTo: string; areaFrom: string; areaTo: string
+  priceFrom: string; priceTo: string
 }
-
 const emptyFilters: Filters = {
   tuman: '', buildingType: '', roomsFrom: '', roomsTo: '',
-  floorFrom: '', floorTo: '', areaFrom: '', areaTo: '',
-  priceFrom: '', priceTo: ''
+  floorFrom: '', floorTo: '', areaFrom: '', areaTo: '', priceFrom: '', priceTo: ''
 }
 
 const TRANSLATIONS: any = {
@@ -89,8 +38,7 @@ const TRANSLATIONS: any = {
     rooms: "Xonalar soni", floorLabel: "Qavat", area2: "Maydon, m²",
     price: "Narx ($)", apply: "Qo'llash", clear: "Tozalash",
     tuman: "Tuman", tumanPlaceholder: "Tumanni tanlang",
-    noResults: "Hech nima topilmadi...",
-    from: "Dan", to: "Gacha",
+    noResults: "Hech nima topilmadi...", from: "Dan", to: "Gacha",
   },
   ru: {
     gallery: "Галерея", map: "Карта", call: "Связаться с продавцом",
@@ -102,8 +50,7 @@ const TRANSLATIONS: any = {
     rooms: "Количество комнат", floorLabel: "Этаж", area2: "Площадь, м²",
     price: "Цена ($)", apply: "Применить", clear: "Очистить",
     tuman: "Район", tumanPlaceholder: "Выберите район",
-    noResults: "Ничего не найдено...",
-    from: "От", to: "До",
+    noResults: "Ничего не найдено...", from: "От", to: "До",
   },
   en: {
     gallery: "Gallery", map: "Map", call: "Contact Seller",
@@ -115,9 +62,15 @@ const TRANSLATIONS: any = {
     rooms: "Number of rooms", floorLabel: "Floor", area2: "Area, m²",
     price: "Price ($)", apply: "Apply", clear: "Clear",
     tuman: "District", tumanPlaceholder: "Select district",
-    noResults: "Nothing found...",
-    from: "From", to: "To",
+    noResults: "Nothing found...", from: "From", to: "To",
   }
+}
+
+function buildYandexUrl(houses: House[], selected: House | null, center = { lat: 41.2995, lng: 69.2401 }, zoom = 13) {
+  const ll = selected ? `${selected.lng},${selected.lat}` : `${center.lng},${center.lat}`
+  const z = selected ? 15 : zoom
+  const pts = houses.slice(0, 100).map(h => `${h.lng},${h.lat},pm2blm`).join('~')
+  return `https://yandex.uz/map-widget/v1/?ll=${ll}&z=${z}${pts ? `&pt=${pts}` : ''}&lang=uz_UZ&scroll=true&controls=zoomControl`
 }
 
 export default function Map() {
@@ -131,6 +84,8 @@ export default function Map() {
   const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters)
   const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
+  const [mapZoom] = useState(13)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   const t = TRANSLATIONS[lang]
 
@@ -160,33 +115,25 @@ export default function Map() {
   const sortedHouses = [...filteredHouses].sort((a, b) => (parseInt(a.price.replace(/\D/g, "")) || 0) - (parseInt(b.price.replace(/\D/g, "")) || 0))
   const floorLabel = (h: House) => !h.floor ? '—' : h.totalFloors ? `${h.floor}/${h.totalFloors}` : `${h.floor}`
 
+  const yandexMapUrl = buildYandexUrl(filteredHouses, selected)
+
   const inputStyle: React.CSSProperties = {
-    background: '#f3f4f6',
-    border: '1.5px solid #e5e7eb',
-    borderRadius: 12,
-    padding: '14px 16px',
-    outline: 'none',
-    fontWeight: 600,
-    color: '#111',
-    fontSize: 15,
-    width: '100%',
-    boxSizing: 'border-box',
+    background: '#f3f4f6', border: '1.5px solid #e5e7eb', borderRadius: 12,
+    padding: '14px 16px', outline: 'none', fontWeight: 600, color: '#111',
+    fontSize: 15, width: '100%', boxSizing: 'border-box',
   }
 
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100%', overflow: 'hidden', background: '#f2f2f7' }}>
 
-      {/* MAP */}
+      {/* YANDEX MAP */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-        <MapContainer center={[41.2995, 69.2401]} zoom={13} zoomControl={false} minZoom={11} maxZoom={18} maxBounds={[[41.0, 68.8], [41.6, 69.6]]} maxBoundsViscosity={1.0} style={{ height: '100%', width: '100%' }}>
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution="© OpenStreetMap © CARTO" />
-          <MapController selected={selected} filteredHouses={filteredHouses} isSearching={searchQuery.trim().length > 0} />
-          <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
-            {filteredHouses.map(h => (
-              <Marker key={h.id} position={[h.lat, h.lng]} icon={createPriceIcon(h.price)} eventHandlers={{ click: () => setSelected(h) }} />
-            ))}
-          </MarkerClusterGroup>
-        </MapContainer>
+        <iframe
+          ref={iframeRef}
+          src={yandexMapUrl}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          allowFullScreen
+        />
       </div>
 
       {/* MAP CONTROLS */}
@@ -199,6 +146,29 @@ export default function Map() {
             </button>
             <div style={{ flex: 1, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, display: 'flex', alignItems: 'center', padding: '8px 12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)', pointerEvents: 'auto' }}>
               <input type="text" placeholder={t.search} style={{ background: 'none', border: 'none', outline: 'none', width: '100%', fontSize: 13, fontWeight: 700, color: '#111' }} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MAP VIEW — uylar list (bottom) */}
+      <AnimatePresence>
+        {view === "map" && !selected && !showDetail && !isFilterOpen && filteredHouses.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, padding: '0 0 12px' }}>
+            <div style={{ display: 'flex', overflowX: 'auto', gap: 10, padding: '8px 16px', scrollSnapType: 'x mandatory' }} className="[&::-webkit-scrollbar]:hidden">
+              {filteredHouses.map(h => (
+                <div key={h.id} onClick={() => { setSelected(h) }} style={{ minWidth: 200, background: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', border: '1px solid #f0f0f0', cursor: 'pointer', scrollSnapAlign: 'start', flexShrink: 0 }}>
+                  <div style={{ position: 'relative', height: 100 }}>
+                    <img src={h.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }} />
+                  </div>
+                  <div style={{ padding: '8px 10px' }}>
+                    <p style={{ fontWeight: 900, fontSize: 14, color: '#111', margin: '0 0 2px' }}>{h.price}</p>
+                    <p style={{ fontSize: 11, color: '#555', margin: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{h.title}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -348,28 +318,68 @@ export default function Map() {
                       <span style={{ color: '#555', fontWeight: 700, fontSize: 14 }}>{t.landmark}</span>
                       <span style={{ color: '#111', fontWeight: 900, fontSize: 15, textAlign: 'right', maxWidth: '60%' }}>{selected.landmark}</span>
                     </div>
-                    <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-                      <iframe
-                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat},pm2rdm&lang=uz_UZ`}
-                        width="100%"
-                        height="220"
-                        style={{ border: 'none', display: 'block' }}
-                        allowFullScreen
+                    <a
+                      href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`}
+                      target="_blank"
+                      style={{ display: 'block', borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}
+                    >
+                      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', maxWidth: 'calc(100% - 20px)' }}>
+                        <svg width="12" height="12" fill="#e63946" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#111', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{selected.landmark}</span>
+                      </div>
+                      <img
+                        src={`https://static-maps.yandex.ru/v1?ll=${selected.lng},${selected.lat}&z=16&size=600,220&l=map&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ`}
+                        style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
+                        onError={(e) => {
+                          const t = e.currentTarget
+                          t.style.display = 'none'
+                          const next = t.nextElementSibling as HTMLElement
+                          if (next) next.style.display = 'flex'
+                        }}
                       />
-                    </div>
+                      <div style={{ display: 'none', height: 220, background: '#f3f4f6', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                        <svg width="32" height="32" fill="none" stroke="#999" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <span style={{ fontSize: 13, color: '#999', fontWeight: 600 }}>Xaritada ko'rish</span>
+                      </div>
+                      <div style={{ background: '#f9fafb', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #f0f0f0' }}>
+                        <svg width="14" height="14" fill="none" stroke="#555" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <span style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>Yandex Maps da ochish</span>
+                        <svg width="12" height="12" fill="none" stroke="#999" strokeWidth="2" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </div>
+                    </a>
                   </div>
                 )}
                 {!selected.landmark && selected.lat && (
                   <div style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-                      <iframe
-                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat},pm2rdm&lang=uz_UZ`}
-                        width="100%"
-                        height="220"
-                        style={{ border: 'none', display: 'block' }}
-                        allowFullScreen
+                    <a
+                      href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`}
+                      target="_blank"
+                      style={{ display: 'block', borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}
+                    >
+                      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+                        <svg width="12" height="12" fill="#e63946" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>{selected.title}</span>
+                      </div>
+                      <img
+                        src={`https://static-maps.yandex.ru/v1?ll=${selected.lng},${selected.lat}&z=16&size=600,220&l=map&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ`}
+                        style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
+                        onError={(e) => {
+                          const t = e.currentTarget
+                          t.style.display = 'none'
+                          const next = t.nextElementSibling as HTMLElement
+                          if (next) next.style.display = 'flex'
+                        }}
                       />
-                    </div>
+                      <div style={{ display: 'none', height: 220, background: '#f3f4f6', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                        <svg width="32" height="32" fill="none" stroke="#999" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <span style={{ fontSize: 13, color: '#999', fontWeight: 600 }}>Xaritada ko'rish</span>
+                      </div>
+                      <div style={{ background: '#f9fafb', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #f0f0f0' }}>
+                        <svg width="14" height="14" fill="none" stroke="#555" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <span style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>Yandex Maps da ochish</span>
+                        <svg width="12" height="12" fill="none" stroke="#999" strokeWidth="2" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </div>
+                    </a>
                   </div>
                 )}
               </div>
