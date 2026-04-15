@@ -84,10 +84,15 @@ export default function Map() {
   const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters)
   const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
+  const [detailImgIdx, setDetailImgIdx] = useState(0)
   const [mapZoom] = useState(13)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   const t = TRANSLATIONS[lang]
+
+  useEffect(() => {
+    setDetailImgIdx(0)
+  }, [selected?.id])
 
   useEffect(() => {
     fetch("/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=" + Date.now())
@@ -270,6 +275,11 @@ export default function Map() {
                       style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', height: '45vh', scrollBehavior: 'smooth' }}
                       className="[&::-webkit-scrollbar]:hidden"
                       id="detail-slider"
+                      onScroll={e => {
+                        const el = e.currentTarget
+                        const idx = Math.round(el.scrollLeft / el.offsetWidth)
+                        if (idx !== detailImgIdx) setDetailImgIdx(idx)
+                      }}
                     >
                       {imgs.map((img, idx) => (
                         <div key={idx}
@@ -279,33 +289,17 @@ export default function Map() {
                       ))}
                     </div>
                     {/* Counter */}
-                    <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 999 }}
-                      id="detail-counter">1 / {imgs.length}</div>
+                    <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 999 }}>
+                      {detailImgIdx + 1} / {imgs.length}
+                    </div>
                     {/* Dots */}
                     {imgs.length > 1 && (
-                      <div style={{ position: 'absolute', bottom: 60, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, zIndex: 10 }}>
+                      <div style={{ position: 'absolute', bottom: 16, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, zIndex: 10 }}>
                         {imgs.map((_, i) => (
-                          <div key={i} id={`dot-${i}`} style={{ width: i === 0 ? 20 : 6, height: 6, borderRadius: 999, background: i === 0 ? '#FFD600' : 'rgba(255,255,255,0.5)', transition: 'all 0.3s' }} />
+                          <div key={i} style={{ width: i === detailImgIdx ? 20 : 6, height: 6, borderRadius: 999, background: i === detailImgIdx ? '#FFD600' : 'rgba(255,255,255,0.5)', transition: 'all 0.3s' }} />
                         ))}
                       </div>
                     )}
-                    <script dangerouslySetInnerHTML={{
-                      __html: `
-                      (function(){
-                        var sl = document.getElementById('detail-slider');
-                        if(!sl) return;
-                        sl.addEventListener('scroll', function(){
-                          var idx = Math.round(sl.scrollLeft / sl.offsetWidth);
-                          var total = ${imgs.length};
-                          var counter = document.getElementById('detail-counter');
-                          if(counter) counter.textContent = (idx+1) + ' / ' + total;
-                          for(var i=0;i<total;i++){
-                            var dot = document.getElementById('dot-'+i);
-                            if(dot){ dot.style.width = i===idx?'20px':'6px'; dot.style.background = i===idx?'#FFD600':'rgba(255,255,255,0.5)'; }
-                          }
-                        }, {passive:true});
-                      })();
-                    ` }} />
                   </>
                 )
               })()}
