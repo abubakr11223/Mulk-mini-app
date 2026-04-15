@@ -179,7 +179,7 @@ export default function Map() {
       {/* MAP */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
         <MapContainer center={[41.2995, 69.2401]} zoom={13} zoomControl={false} minZoom={11} maxZoom={18} maxBounds={[[41.0, 68.8], [41.6, 69.6]]} maxBoundsViscosity={1.0} style={{ height: '100%', width: '100%' }}>
-          <TileLayer url="https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU" attribution="© Яндекс Карты" />
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
           <MapController selected={selected} filteredHouses={filteredHouses} isSearching={searchQuery.trim().length > 0} />
           <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
             {filteredHouses.map(h => (
