@@ -179,7 +179,7 @@ export default function Map() {
       {/* MAP */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
         <MapContainer center={[41.2995, 69.2401]} zoom={13} zoomControl={false} minZoom={11} maxZoom={18} maxBounds={[[41.0, 68.8], [41.6, 69.6]]} maxBoundsViscosity={1.0} style={{ height: '100%', width: '100%' }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+          <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution="© OpenStreetMap © CARTO" />
           <MapController selected={selected} filteredHouses={filteredHouses} isSearching={searchQuery.trim().length > 0} />
           <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
             {filteredHouses.map(h => (
@@ -343,9 +343,33 @@ export default function Map() {
                   </div>
                 )}
                 {selected.landmark && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <span style={{ color: '#555', fontWeight: 700, fontSize: 14 }}>{t.landmark}</span>
-                    <span style={{ color: '#111', fontWeight: 900, fontSize: 15, textAlign: 'right', maxWidth: '60%' }}>{selected.landmark}</span>
+                  <div style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ color: '#555', fontWeight: 700, fontSize: 14 }}>{t.landmark}</span>
+                      <span style={{ color: '#111', fontWeight: 900, fontSize: 15, textAlign: 'right', maxWidth: '60%' }}>{selected.landmark}</span>
+                    </div>
+                    <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                      <iframe
+                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat},pm2rdm&lang=uz_UZ`}
+                        width="100%"
+                        height="220"
+                        style={{ border: 'none', display: 'block' }}
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                )}
+                {!selected.landmark && selected.lat && (
+                  <div style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                      <iframe
+                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat},pm2rdm&lang=uz_UZ`}
+                        width="100%"
+                        height="220"
+                        style={{ border: 'none', display: 'block' }}
+                        allowFullScreen
+                      />
+                    </div>
                   </div>
                 )}
               </div>
