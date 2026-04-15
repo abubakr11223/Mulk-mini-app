@@ -388,11 +388,11 @@ export default function Map() {
                     style={{ display: 'block', borderRadius: 18, overflow: 'hidden', border: '1.5px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}>
                     <div style={{ position: 'relative', width: '100%', height: 240, overflow: 'hidden' }}>
                       <iframe
-                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng},${selected.lat}&z=16&lang=uz_UZ&controls=`}
+                        src={`https://yandex.uz/map-widget/v1/?ll=${selected.lng},${selected.lat}&z=16&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ&controls=`}
                         style={{ width: '100%', height: '100%', border: 'none' }}
                         allowFullScreen
                       />
-                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -130%)', zIndex: 10, pointerEvents: 'none' }}>
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -195%)', zIndex: 10, pointerEvents: 'none' }}>
                         <div style={{ background: '#e63946', color: '#fff', fontWeight: 900, fontSize: 13, padding: '5px 12px', borderRadius: 8, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
                           {selected.price}
                         </div>
