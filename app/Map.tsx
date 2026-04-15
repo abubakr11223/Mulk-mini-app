@@ -113,7 +113,6 @@ export default function Map() {
   })
 
   const sortedHouses = [...filteredHouses].sort((a, b) => (parseInt(a.price.replace(/\D/g, "")) || 0) - (parseInt(b.price.replace(/\D/g, "")) || 0))
-  const floorLabel = (h: House) => !h.floor ? '—' : h.totalFloors ? `${h.floor}/${h.totalFloors}` : `${h.floor}`
 
   const yandexMapUrl = buildYandexUrl(filteredHouses, selected)
 
@@ -309,8 +308,11 @@ export default function Map() {
                 </div>
                 <div style={{ background: '#eff6ff', borderRadius: 18, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #bfdbfe' }}>
                   <span style={{ fontSize: 24 }}>🏢</span>
-                  <span style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1.1, marginTop: 4 }}>{selected.floor || '—'}/{selected.totalFloors || '—'}</span>
-                  <span style={{ fontSize: 12, color: '#1e40af', fontWeight: 700, marginTop: 4, textAlign: 'center' }}>etaj / jami</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 1, marginTop: 4 }}>
+                    <span style={{ fontSize: 26, fontWeight: 900, color: '#111', lineHeight: 1 }}>{selected.floor || '—'}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#6b7280' }}>/{selected.totalFloors || '—'}</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: '#1e40af', fontWeight: 700, marginTop: 4, textAlign: 'center' }}>qavat / jami</span>
                 </div>
               </div>
 
@@ -397,17 +399,14 @@ export default function Map() {
             onClick={() => setLightbox(null)}
             style={{ position: 'absolute', inset: 0, zIndex: 9000, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <button
-              onClick={() => setLightbox(null)}
-              style={{ position: 'absolute', top: 20, right: 20, zIndex: 10, width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}
-            >
+            <button onClick={() => setLightbox(null)}
+              style={{ position: 'absolute', top: 20, right: 20, zIndex: 10, width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
               <svg width="22" height="22" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             <div style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 700, opacity: 0.8 }}>
               {lightbox.index + 1} / {lightbox.images.length}
             </div>
-            <div
-              onClick={e => e.stopPropagation()}
+            <div onClick={e => e.stopPropagation()}
               style={{ width: '100%', height: '100%', display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory' }}
               className="[&::-webkit-scrollbar]:hidden"
               ref={el => {
@@ -418,31 +417,22 @@ export default function Map() {
                     if (idx !== lightbox.index) setLightbox(lb => lb ? { ...lb, index: idx } : null)
                   }
                 }
-              }}
-            >
+              }}>
               {lightbox.images.map((img, idx) => (
                 <div key={idx} style={{ minWidth: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', scrollSnapAlign: 'center', flexShrink: 0 }}>
-                  <img
-                    src={img}
-                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none' }}
-                    draggable={false}
-                  />
+                  <img src={img} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none' }} draggable={false} />
                 </div>
               ))}
             </div>
             {lightbox.images.length > 1 && lightbox.index > 0 && (
-              <button
-                onClick={e => { e.stopPropagation(); setLightbox(lb => lb ? { ...lb, index: lb.index - 1 } : null) }}
-                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 10 }}
-              >
+              <button onClick={e => { e.stopPropagation(); setLightbox(lb => lb ? { ...lb, index: lb.index - 1 } : null) }}
+                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 10 }}>
                 <svg width="20" height="20" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
               </button>
             )}
             {lightbox.images.length > 1 && lightbox.index < lightbox.images.length - 1 && (
-              <button
-                onClick={e => { e.stopPropagation(); setLightbox(lb => lb ? { ...lb, index: lb.index + 1 } : null) }}
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 10 }}
-              >
+              <button onClick={e => { e.stopPropagation(); setLightbox(lb => lb ? { ...lb, index: lb.index + 1 } : null) }}
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 10 }}>
                 <svg width="20" height="20" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
               </button>
             )}
@@ -450,164 +440,60 @@ export default function Map() {
         )}
       </AnimatePresence>
 
-      {/* FILTER — yangi dizayn */}
+      {/* FILTER */}
       <AnimatePresence>
         {isFilterOpen && (
-          <motion.div
-            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            style={{ position: 'absolute', inset: 0, zIndex: 4000, background: '#fff', display: 'flex', flexDirection: 'column' }}
-          >
-            {/* Header */}
+            style={{ position: 'absolute', inset: 0, zIndex: 4000, background: '#fff', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '20px 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
               <h2 style={{ fontSize: 26, fontWeight: 900, color: '#000', margin: 0 }}>{t.filterTitle}</h2>
               <button onClick={() => setIsFilterOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <svg width="28" height="28" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <svg width="28" height="28" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-
-            {/* Scrollable body */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0' }}>
-
-              {/* Kvartira turi */}
               <div style={{ marginBottom: 24 }}>
                 <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.apartType}</p>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  {[
-                    { value: 'Novostroyka', label: t.newBuilding },
-                    { value: 'Vtorichka', label: t.secondary },
-                  ].map(type => (
-                    <button
-                      key={type.value}
-                      onClick={() => setFilters(f => ({ ...f, buildingType: f.buildingType === type.value ? '' : type.value }))}
-                      style={{
-                        flex: 1, padding: '14px 0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                        border: filters.buildingType === type.value ? '2px solid #000' : '1.5px solid #e5e7eb',
-                        background: filters.buildingType === type.value ? '#f9fafb' : '#f3f4f6',
-                        color: '#111',
-                        transition: 'all 0.15s',
-                      }}
-                    >
+                  {[{ value: 'Novostroyka', label: t.newBuilding }, { value: 'Vtorichka', label: t.secondary }].map(type => (
+                    <button key={type.value} onClick={() => setFilters(f => ({ ...f, buildingType: f.buildingType === type.value ? '' : type.value }))}
+                      style={{ flex: 1, padding: '14px 0', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', border: filters.buildingType === type.value ? '2px solid #000' : '1.5px solid #e5e7eb', background: filters.buildingType === type.value ? '#f9fafb' : '#f3f4f6', color: '#111', transition: 'all 0.15s' }}>
                       {type.label}
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Tuman */}
               <div style={{ marginBottom: 24 }}>
                 <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.tuman}</p>
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={filters.tuman}
-                    onChange={e => setFilters(f => ({ ...f, tuman: e.target.value }))}
-                    style={{
-                      ...inputStyle,
-                      appearance: 'none',
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5'%3E%3Cpath d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right 16px center',
-                      paddingRight: 44,
-                    }}
-                  >
-                    <option value="">{t.tumanPlaceholder}</option>
-                    {TUMANS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
-                  </select>
-                </div>
+                <select value={filters.tuman} onChange={e => setFilters(f => ({ ...f, tuman: e.target.value }))}
+                  style={{ ...inputStyle, appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5'%3E%3Cpath d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', paddingRight: 44 }}>
+                  <option value="">{t.tumanPlaceholder}</option>
+                  {TUMANS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
+                </select>
               </div>
-
-              {/* Xonalar soni */}
-              <div style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.rooms}</p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    type="number"
-                    value={filters.roomsFrom}
-                    onChange={e => setFilters(f => ({ ...f, roomsFrom: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <input
-                    type="number"
-                    value={filters.roomsTo}
-                    onChange={e => setFilters(f => ({ ...f, roomsTo: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
+              {[
+                { label: t.rooms, from: 'roomsFrom', to: 'roomsTo' },
+                { label: t.floorLabel, from: 'floorFrom', to: 'floorTo' },
+                { label: t.area2, from: 'areaFrom', to: 'areaTo' },
+                { label: t.price, from: 'priceFrom', to: 'priceTo' },
+              ].map(field => (
+                <div key={field.from} style={{ marginBottom: 24 }}>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{field.label}</p>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <input type="number" value={(filters as any)[field.from]} onChange={e => setFilters(f => ({ ...f, [field.from]: e.target.value }))} style={{ ...inputStyle, flex: 1 }} />
+                    <input type="number" value={(filters as any)[field.to]} onChange={e => setFilters(f => ({ ...f, [field.to]: e.target.value }))} style={{ ...inputStyle, flex: 1 }} />
+                  </div>
                 </div>
-              </div>
-
-              {/* Qavat */}
-              <div style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.floorLabel}</p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    type="number"
-                    value={filters.floorFrom}
-                    onChange={e => setFilters(f => ({ ...f, floorFrom: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <input
-                    type="number"
-                    value={filters.floorTo}
-                    onChange={e => setFilters(f => ({ ...f, floorTo: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* Maydon */}
-              <div style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.area2}</p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    type="number"
-                    value={filters.areaFrom}
-                    onChange={e => setFilters(f => ({ ...f, areaFrom: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <input
-                    type="number"
-                    value={filters.areaTo}
-                    onChange={e => setFilters(f => ({ ...f, areaTo: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                </div>
-              </div>
-
-              {/* Narx */}
-              <div style={{ marginBottom: 32 }}>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#000', margin: '0 0 10px' }}>{t.price}</p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    type="number"
-                    value={filters.priceFrom}
-                    onChange={e => setFilters(f => ({ ...f, priceFrom: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <input
-                    type="number"
-                    value={filters.priceTo}
-                    onChange={e => setFilters(f => ({ ...f, priceTo: e.target.value }))}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                </div>
-              </div>
-
+              ))}
             </div>
-
-            {/* Footer buttons */}
             <div style={{ padding: '16px 20px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 12, flexShrink: 0, background: '#fff' }}>
-              <button
-                onClick={() => { setFilters(emptyFilters); setAppliedFilters(emptyFilters) }}
-                style={{ flex: 0.45, background: '#f3f4f6', color: '#555', fontWeight: 700, padding: '16px 0', borderRadius: 16, fontSize: 15, border: '1.5px solid #e5e7eb', cursor: 'pointer' }}
-              >
+              <button onClick={() => { setFilters(emptyFilters); setAppliedFilters(emptyFilters) }}
+                style={{ flex: 0.45, background: '#f3f4f6', color: '#555', fontWeight: 700, padding: '16px 0', borderRadius: 16, fontSize: 15, border: '1.5px solid #e5e7eb', cursor: 'pointer' }}>
                 {t.clear}
               </button>
-              <button
-                onClick={() => { setAppliedFilters(filters); setIsFilterOpen(false) }}
-                style={{ flex: 1, background: '#FFD600', color: '#000', fontWeight: 900, padding: '16px 0', borderRadius: 16, fontSize: 16, border: 'none', cursor: 'pointer' }}
-              >
+              <button onClick={() => { setAppliedFilters(filters); setIsFilterOpen(false) }}
+                style={{ flex: 1, background: '#FFD600', color: '#000', fontWeight: 900, padding: '16px 0', borderRadius: 16, fontSize: 16, border: 'none', cursor: 'pointer' }}>
                 {t.apply}
               </button>
             </div>
