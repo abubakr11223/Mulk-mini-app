@@ -279,102 +279,93 @@ export default function Map() {
                 <h1 style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: 0 }}>{selected.title}</h1>
               </div>
             </div>
-            <div style={{ padding: '20px 20px 112px', background: '#fff' }}>
+            <div style={{ padding: '20px 20px 112px', background: '#f7f7f7' }}>
+
               {/* Narx */}
-              <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f0f0f0' }}>
-                <p style={{ fontSize: 13, color: '#888', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Narx</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <p style={{ fontSize: 36, fontWeight: 900, color: '#000', margin: 0 }}>{selected.price}</p>
+              <div style={{ background: '#fff', borderRadius: 20, padding: '18px 20px', marginBottom: 14, border: '1.5px solid #f0f0f0' }}>
+                <p style={{ fontSize: 13, color: '#999', fontWeight: 700, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: 0.8 }}>💰 Narx</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <p style={{ fontSize: 38, fontWeight: 900, color: '#111', margin: 0 }}>{selected.price}</p>
                   {selected.discount && selected.oldPrice && (
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ color: '#ef4444', fontWeight: 900, fontSize: 14, background: '#fef2f2', padding: '2px 8px', borderRadius: 6 }}>-{selected.discount}%</span>
-                      <span style={{ color: '#9ca3af', fontSize: 13, textDecoration: 'line-through', marginTop: 2 }}>{selected.oldPrice}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ background: '#fee2e2', color: '#dc2626', fontWeight: 900, fontSize: 15, padding: '3px 10px', borderRadius: 8 }}>-{selected.discount}% chegirma</span>
+                      <span style={{ color: '#aaa', fontSize: 14, textDecoration: 'line-through' }}>Avvalgi: {selected.oldPrice}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Asosiy parametrlar — katta kartochkalar */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-                <div style={{ background: '#f9fafb', borderRadius: 14, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #f0f0f0' }}>
-                  <span style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.3 }}>Xonalar</span>
-                  <span style={{ fontSize: 26, fontWeight: 900, color: '#111', lineHeight: 1 }}>{selected.rooms || '—'}</span>
-                  <span style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>xona</span>
+              {/* 3 ta katta kartochka */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+                <div style={{ background: '#fffbeb', borderRadius: 18, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #fde68a' }}>
+                  <span style={{ fontSize: 24 }}>🛏</span>
+                  <span style={{ fontSize: 28, fontWeight: 900, color: '#111', lineHeight: 1.1, marginTop: 4 }}>{selected.rooms || '—'}</span>
+                  <span style={{ fontSize: 12, color: '#92400e', fontWeight: 700, marginTop: 4, textAlign: 'center' }}>xona</span>
                 </div>
-                <div style={{ background: '#f9fafb', borderRadius: 14, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #f0f0f0' }}>
-                  <span style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.3 }}>Maydon</span>
-                  <span style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1 }}>{selected.area || '—'}</span>
-                  <span style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>m²</span>
+                <div style={{ background: '#f0fdf4', borderRadius: 18, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #bbf7d0' }}>
+                  <span style={{ fontSize: 24 }}>📐</span>
+                  <span style={{ fontSize: 24, fontWeight: 900, color: '#111', lineHeight: 1.1, marginTop: 4 }}>{selected.area || '—'}</span>
+                  <span style={{ fontSize: 12, color: '#166534', fontWeight: 700, marginTop: 4, textAlign: 'center' }}>m² maydon</span>
                 </div>
-                <div style={{ background: '#f9fafb', borderRadius: 14, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #f0f0f0' }}>
-                  <span style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.3 }}>Qavat</span>
-                  <span style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1 }}>{selected.floor || '—'} / {selected.totalFloors || '—'}</span>
-                  <span style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>etaj / jami</span>
+                <div style={{ background: '#eff6ff', borderRadius: 18, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1.5px solid #bfdbfe' }}>
+                  <span style={{ fontSize: 24 }}>🏢</span>
+                  <span style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1.1, marginTop: 4 }}>{selected.floor || '—'}/{selected.totalFloors || '—'}</span>
+                  <span style={{ fontSize: 12, color: '#1e40af', fontWeight: 700, marginTop: 4, textAlign: 'center' }}>etaj / jami</span>
                 </div>
               </div>
 
-              {/* Qo'shimcha ma'lumotlar — ro'yxat */}
-              <div style={{ background: '#f9fafb', borderRadius: 16, overflow: 'hidden', border: '1.5px solid #f0f0f0', marginBottom: 20 }}>
+              {/* Ma'lumotlar ro'yxati */}
+              <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', border: '1.5px solid #f0f0f0', marginBottom: 14 }}>
                 {selected.buildingType && (
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #f0f0f0', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff7e0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="18" height="18" fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '16px 18px', borderBottom: '1px solid #f5f5f5', gap: 14 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 14, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🏗</div>
                     <div>
-                      <p style={{ fontSize: 12, color: '#888', margin: 0, fontWeight: 600 }}>Bino turi</p>
-                      <p style={{ fontSize: 16, color: '#111', margin: 0, fontWeight: 800 }}>{selected.buildingType}</p>
+                      <p style={{ fontSize: 13, color: '#999', margin: '0 0 2px', fontWeight: 700 }}>Bino turi</p>
+                      <p style={{ fontSize: 18, color: '#111', margin: 0, fontWeight: 900 }}>{selected.buildingType}</p>
                     </div>
                   </div>
                 )}
                 {selected.landmark && (
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #f0f0f0', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="18" height="18" fill="#e63946" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 12, color: '#888', margin: 0, fontWeight: 600 }}>Orientir (mo'ljal)</p>
-                      <p style={{ fontSize: 16, color: '#111', margin: 0, fontWeight: 800 }}>{selected.landmark}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '16px 18px', borderBottom: '1px solid #f5f5f5', gap: 14 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 14, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📍</div>
+                    <div>
+                      <p style={{ fontSize: 13, color: '#999', margin: '0 0 2px', fontWeight: 700 }}>Mo'ljal (orientir)</p>
+                      <p style={{ fontSize: 18, color: '#111', margin: 0, fontWeight: 900 }}>{selected.landmark}</p>
                     </div>
                   </div>
                 )}
                 {selected.crmId && (
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="18" height="18" fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '16px 18px', gap: 14 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 14, background: '#fefce8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🔖</div>
                     <div>
-                      <p style={{ fontSize: 12, color: '#888', margin: 0, fontWeight: 600 }}>E'lon raqami</p>
-                      <p style={{ fontSize: 16, color: '#111', margin: 0, fontWeight: 800 }}>#{selected.crmId}</p>
+                      <p style={{ fontSize: 13, color: '#999', margin: '0 0 2px', fontWeight: 700 }}>E'lon raqami</p>
+                      <p style={{ fontSize: 18, color: '#111', margin: 0, fontWeight: 900 }}>#{selected.crmId}</p>
                     </div>
                   </div>
                 )}
               </div>
+
               {/* Xarita */}
               {selected.lat && (
-                <div style={{ marginBottom: 20 }}>
-                  <p style={{ fontSize: 13, color: '#888', fontWeight: 600, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Manzil (xaritada)</p>
-                  <a
-                    href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`}
-                    target="_blank"
-                    style={{ display: 'block', borderRadius: 16, overflow: 'hidden', border: '1.5px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}
-                  >
-                    <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,255,255,0.97)', borderRadius: 8, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', maxWidth: 'calc(100% - 20px)' }}>
-                      <svg width="12" height="12" fill="#e63946" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#111', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{selected.landmark || selected.title}</span>
+                <div style={{ marginBottom: 14 }}>
+                  <p style={{ fontSize: 13, color: '#999', fontWeight: 700, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.8 }}>🗺 Manzil xaritada</p>
+                  <a href={`https://yandex.uz/maps/?ll=${selected.lng}%2C${selected.lat}&z=16&pt=${selected.lng}%2C${selected.lat}`} target="_blank"
+                    style={{ display: 'block', borderRadius: 18, overflow: 'hidden', border: '1.5px solid #e5e7eb', textDecoration: 'none', position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,255,255,0.97)', borderRadius: 10, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', maxWidth: 'calc(100% - 20px)' }}>
+                      <span style={{ fontSize: 14 }}>📍</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#111', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{selected.landmark || selected.title}</span>
                     </div>
-                    <img
-                      src={`https://static-maps.yandex.ru/v1?ll=${selected.lng},${selected.lat}&z=16&size=600,220&l=map&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ`}
-                      style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
-                      onError={(e) => { const el = e.currentTarget; el.style.display = 'none'; const next = el.nextElementSibling as HTMLElement; if (next) next.style.display = 'flex' }}
-                    />
-                    <div style={{ display: 'none', height: 220, background: '#f3f4f6', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
-                      <svg width="32" height="32" fill="none" stroke="#bbb" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      <span style={{ fontSize: 13, color: '#bbb', fontWeight: 600 }}>Xarita yuklanmadi</span>
+                    <img src={`https://static-maps.yandex.ru/v1?ll=${selected.lng},${selected.lat}&z=16&size=600,240&l=map&pt=${selected.lng},${selected.lat},pm2rdm&lang=uz_UZ`}
+                      style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }}
+                      onError={(e) => { const el = e.currentTarget; el.style.display = 'none'; const next = el.nextElementSibling as HTMLElement; if (next) next.style.display = 'flex' }} />
+                    <div style={{ display: 'none', height: 240, background: '#f3f4f6', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                      <span style={{ fontSize: 32 }}>🗺</span>
+                      <span style={{ fontSize: 14, color: '#bbb', fontWeight: 600 }}>Xarita yuklanmadi</span>
                     </div>
-                    <div style={{ background: '#f9fafb', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid #f0f0f0' }}>
-                      <svg width="14" height="14" fill="none" stroke="#555" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      <span style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>Yandex Maps da to'liq ochish</span>
-                      <svg width="12" height="12" fill="none" stroke="#aaa" strokeWidth="2" viewBox="0 0 24 24" style={{ marginLeft: 'auto' }}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    <div style={{ background: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid #f0f0f0' }}>
+                      <span style={{ fontSize: 16 }}>📲</span>
+                      <span style={{ fontSize: 14, color: '#333', fontWeight: 700 }}>Yandex Maps da to'liq ochish</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 18 }}>→</span>
                     </div>
                   </a>
                 </div>
@@ -382,11 +373,12 @@ export default function Map() {
 
               {/* Tavsif */}
               {selected.description && (
-                <div style={{ marginBottom: 20 }}>
-                  <p style={{ fontSize: 13, color: '#888', fontWeight: 600, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ta'rif</p>
-                  <p style={{ color: '#333', lineHeight: 1.8, fontSize: 16, margin: 0 }}>{selected.description}</p>
+                <div style={{ background: '#fff', borderRadius: 20, padding: '18px 20px', border: '1.5px solid #f0f0f0' }}>
+                  <p style={{ fontSize: 13, color: '#999', fontWeight: 700, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.8 }}>📝 Ta'rif</p>
+                  <p style={{ color: '#333', lineHeight: 1.9, fontSize: 16, margin: 0 }}>{selected.description}</p>
                 </div>
               )}
+
             </div>
             <div style={{ position: 'fixed', bottom: 0, left: 0, width: '100%', background: '#fff', borderTop: '1px solid #f0f0f0', padding: 20, zIndex: 20, boxSizing: 'border-box' }}>
               <button onClick={() => { window.location.href = "tel:+998909059990" }} style={{ width: '100%', background: '#FFD600', color: '#000', fontWeight: 900, padding: '16px 0', borderRadius: 16, fontSize: 16, border: 'none', cursor: 'pointer' }}>
