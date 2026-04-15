@@ -267,14 +267,14 @@ export default function Map() {
                 return (
                   <>
                     <div
-                      style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', maxHeight: '60vh', scrollBehavior: 'smooth' }}
+                      style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', height: '45vh', scrollBehavior: 'smooth' }}
                       className="[&::-webkit-scrollbar]:hidden"
                       id="detail-slider"
                     >
                       {imgs.map((img, idx) => (
-                        <div key={idx} onClick={() => setLightbox({ images: imgs, index: idx })}
-                          style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'start', flexShrink: 0, maxHeight: '60vh', cursor: 'zoom-in' }}>
-                          <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: '60vh', display: 'block' }} />
+                        <div key={idx}
+                          style={{ minWidth: '100%', position: 'relative', scrollSnapAlign: 'start', flexShrink: 0, height: '45vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+                          <img src={img} style={{ maxWidth: '100%', maxHeight: '45vh', objectFit: 'contain', display: 'block' }} />
                         </div>
                       ))}
                     </div>
