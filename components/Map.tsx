@@ -1,761 +1,618 @@
-'use client'
+"use client"
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMap,
+} from "react-leaflet"
+import MarkerClusterGroup from "react-leaflet-cluster"
+import "leaflet/dist/leaflet.css"
 
-// ─────────────────────────────────────────────
-// TUMANLAR
-// ─────────────────────────────────────────────
-const DISTRICTS = [
-  'Yashnobod', 'Yunusobod', 'Chilonzor', 'Mirzo Ulugbek',
-  'Shayxontohur', 'Olmazor', 'Bektemir', 'Sergeli',
-  'Uchtepa', 'Yakkasaroy', 'Shahar markazi',
-]
+import { useEffect, useState } from "react"
+import L from "leaflet"
+import { motion, AnimatePresence } from "framer-motion"
 
-// ─────────────────────────────────────────────
-// TIPLAR
-// ─────────────────────────────────────────────
-interface House {
-  id: number
-  title: string
-  lat: number
-  lng: number
-  price: number
-  rooms: number
-  area: number
-  floor: number
-  totalFloors: number
-  district: string
-  description: string
-  landmark: string
-  jk: string
-  yandex_url: string
-  updatedAt: number
-}
+// ICON FIX
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+})
 
-interface Filters {
-  district: string
-  roomMin: string
-  roomMax: string
-  areaMin: string
-  areaMax: string
-  type: 'all' | 'new' | 'secondary'
-  floorsMin: string
-  floorsMax: string
-  floorMin: string
-  floorMax: string
-  priceMin: string
-  priceMax: string
-}
+const createPriceIcon = (price: string) =>
+  L.divIcon({
+    html: `
+      <div class="relative flex items-center justify-center px-3 py-1 rounded-[6px] font-extrabold text-[13px] tracking-tight shadow-md transition-transform duration-200 hover:scale-110 bg-[#FFD600] text-black border border-yellow-500/50 whitespace-nowrap">
+        ${price.replace(" ", "")}
+        <div class="absolute -bottom-[5px] left-1/2 -translate-x-1/2 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#FFD600]"></div>
+      </div>
+    `,
+    className: "",
+  })
 
-const EMPTY_FILTERS: Filters = {
-  district: '', roomMin: '', roomMax: '',
-  areaMin: '', areaMax: '', type: 'all',
-  floorsMin: '', floorsMax: '', floorMin: '', floorMax: '',
-  priceMin: '', priceMax: '',
-}
-
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
-function formatPrice(price: number): string {
-  if (!price) return '—'
-  if (price < 500_000) return `$${price.toLocaleString('en')}`
-  return (price / 1_000_000).toFixed(1).replace(/\.0$/, '') + ' mln so\'m'
-}
-
-function shortPrice(price: number): string {
-  if (!price) return '?'
-  if (price < 500_000) return `$${price.toLocaleString('en')}`
-  return (price / 1_000_000).toFixed(0) + 'M'
-}
-
-const toNum = (v: string) => parseInt(v.replace(/\D/g, ''), 10) || 0
-const toFloat = (v: string) => parseFloat(v.replace(/[^\d.]/g, '')) || 0
-
-// ─────────────────────────────────────────────
-// FILTER matching
-// ─────────────────────────────────────────────
-function applyFilters(houses: House[], f: Filters): House[] {
-  return houses.filter(h => {
-    if (f.district) {
-      const q = f.district.toLowerCase()
-      const hay = [h.district, h.title, h.landmark, h.jk].join(' ').toLowerCase()
-      if (!hay.includes(q)) return false
-    }
-    if (f.roomMin && h.rooms < parseInt(f.roomMin)) return false
-    if (f.roomMax && h.rooms > parseInt(f.roomMax)) return false
-    if (f.areaMin && h.area < toFloat(f.areaMin)) return false
-    if (f.areaMax && h.area > toFloat(f.areaMax)) return false
-    if (f.floorsMin && h.totalFloors < parseInt(f.floorsMin)) return false
-    if (f.floorsMax && h.totalFloors > parseInt(f.floorsMax)) return false
-    if (f.floorMin && h.floor < parseInt(f.floorMin)) return false
-    if (f.floorMax && h.floor > parseInt(f.floorMax)) return false
-    if (f.priceMin && h.price < toNum(f.priceMin)) return false
-    if (f.priceMax && h.price > toNum(f.priceMax)) return false
-    if (f.type === 'new' && !h.jk) return false
-    if (f.type === 'secondary' && h.jk) return false
-    return true
+const createClusterIcon = (cluster: any) => {
+  const count = cluster.getChildCount()
+  return L.divIcon({
+    html: `
+      <div class="bg-[#FFD600] text-black w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-[14px] shadow-md border-[2px] border-white">
+        ${count}
+      </div>
+    `,
+    className: "",
   })
 }
 
-// ─────────────────────────────────────────────
-// SVG ICONS
-// ─────────────────────────────────────────────
-function IconMap() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-      <line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" />
-    </svg>
-  )
-}
-function IconGrid() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-      <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-    </svg>
-  )
-}
-function IconFilter() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" />
-      <line x1="11" y1="18" x2="13" y2="18" />
-    </svg>
-  )
-}
-function IconPhone() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 010 1.18 2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14.92z" />
-    </svg>
-  )
-}
-function IconShare() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-    </svg>
-  )
-}
-function IconClose() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  )
-}
-function IconRefresh({ spinning }: { spinning: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      style={{ animation: spinning ? 'spin 1s linear infinite' : 'none' }}>
-      <polyline points="23 4 23 10 17 10" />
-      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-    </svg>
-  )
+export type House = {
+  id: number
+  crmId: string
+  lat: number
+  lng: number
+  price: string
+  oldPrice?: string
+  discount?: number
+  hot: boolean
+  title: string
+  description: string
+  image: string
+  images?: string[]
+  rooms: number
+  area: number
+  floor: number
+  totalFloors?: number
+  buildingType?: string
+  landmark?: string
 }
 
-// ─────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────
-type Tab = 'map' | 'gallery' | 'filter'
+function MapController({ selected, filteredHouses, isSearching }: { selected: House | null, filteredHouses: House[], isSearching: boolean }) {
+  const map = useMap()
 
-// ─────────────────────────────────────────────
-// MAIN COMPONENT
-// ─────────────────────────────────────────────
+  useEffect(() => {
+    if (selected) {
+      map.flyTo([selected.lat - 0.007, selected.lng], 15, {
+        duration: 0.8,
+        easeLinearity: 0.25,
+      })
+    } else if (isSearching && filteredHouses.length > 0) {
+      const bounds = L.latLngBounds(filteredHouses.map(h => [h.lat, h.lng]))
+      if (filteredHouses.length === 1) {
+        map.flyTo([filteredHouses[0].lat, filteredHouses[0].lng], 15, { duration: 0.6 })
+      } else {
+        map.flyToBounds(bounds, { padding: [50, 50], duration: 0.6, maxZoom: 14 })
+      }
+    }
+  }, [selected, filteredHouses, isSearching, map])
+
+  return null
+}
+
+const TRANSLATIONS = {
+  uz: {
+    gallery: "Galereya",
+    map: "Xarita",
+    call: "Sotuvchi bilan bog'lanish",
+    back: "Orqaga",
+    filter: "Filtrlar",
+    room: "Xonalar",
+    area: "Yuzasi",
+    floor: "Qavat",
+    bType: "Bino turi",
+    landmark: "Mo'ljal (Orientir)",
+    desc: "Ta'rifi",
+    search: "Qidirish...",
+    latest: "Sotuvdagi e'lonlar",
+    NotFound: "Hech narsa topilmadi",
+    mainSpec: "Asosiy xususiyatlar",
+  },
+  ru: {
+    gallery: "Галерея",
+    map: "Карта",
+    call: "Связаться с продавцом",
+    back: "Назад",
+    filter: "Фильтры",
+    room: "Комнаты",
+    area: "Площадь",
+    floor: "Этаж",
+    bType: "Тип здания",
+    landmark: "Ориентир",
+    desc: "Описание",
+    search: "Поиск...",
+    latest: "Объявления о продаже",
+    NotFound: "Ничего не найдено",
+    mainSpec: "Основные характеристики",
+  },
+  en: {
+    gallery: "Gallery",
+    map: "Map",
+    call: "Contact Seller",
+    back: "Back",
+    filter: "Filters",
+    room: "Rooms",
+    area: "Area",
+    floor: "Floor",
+    bType: "Building Type",
+    landmark: "Landmark",
+    desc: "Description",
+    search: "Search...",
+    latest: "Listings for sale",
+    NotFound: "Nothing found",
+    mainSpec: "Main features",
+  }
+}
+
 export default function Map() {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const ymapsRef = useRef<any>(null)
-  const mapObjRef = useRef<any>(null)
+  const [lang, setLang] = useState<"uz" | "ru" | "en">("uz")
+  const t = TRANSLATIONS[lang]
 
-  const [ymapsReady, setYmapsReady] = useState(false)
   const [houses, setHouses] = useState<House[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<House | null>(null)
-  const [syncing, setSyncing] = useState(false)
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
-  const [activeTab, setActiveTab] = useState<Tab>('map')
 
-  const filteredHouses = applyFilters(houses, filters)
-  const activeFiltersCount = Object.entries(filters).filter(([k, v]) =>
-    k === 'type' ? v !== 'all' : v !== ''
-  ).length
+  const [view, setView] = useState<"gallery" | "map">("gallery")
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [appliedSearch, setAppliedSearch] = useState("")
+  const [showDetail, setShowDetail] = useState(false)
 
-  // ── Telegram init ─────────────────────────────
   useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp
-    if (tg) {
-      tg.ready()
-      tg.expand()
-    }
+    fetch("/api/houses?north=41.6&south=41.0&east=69.6&west=68.8&t=" + Date.now())
+      .then((res) => res.json())
+      .then((data) => setHouses(data))
   }, [])
 
-  // ── Load data ─────────────────────────────────
-  const loadHouses = useCallback(async (force = false) => {
-    setSyncing(true)
-    try {
-      const res = await fetch(force ? '/api/amo-leads?force=1' : '/api/amo-leads')
-      if (!res.ok) throw new Error(`Server xato: ${res.status}`)
-      const data: House[] = await res.json()
-      setHouses(data)
-      setError(null)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-      setSyncing(false)
+  const filteredHouses = houses.filter(h => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return true
+    return h.title.toLowerCase().includes(q) ||
+      (h.crmId && h.crmId.toString().includes(q)) ||
+      (h.landmark && h.landmark.toLowerCase().includes(q))
+  })
+
+  const sortedHouses = [...filteredHouses].sort((a, b) => {
+    const pA = parseInt(a.price.replace(/\D/g, "")) || 0
+    const pB = parseInt(b.price.replace(/\D/g, "")) || 0
+    return pA - pB
+  })
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      setAppliedSearch(searchQuery)
     }
-  }, [])
-
-  useEffect(() => { loadHouses() }, [loadHouses])
-  useEffect(() => {
-    const id = setInterval(() => loadHouses(), 5 * 60 * 1000)
-    return () => clearInterval(id)
-  }, [loadHouses])
-
-  // ── Yandex Maps SDK ───────────────────────────
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const init = () => {
-      ; (window as any).ymaps.ready(() => {
-        ymapsRef.current = (window as any).ymaps
-        setYmapsReady(true)
-      })
-    }
-    if ((window as any).ymaps) { init(); return }
-    const script = document.createElement('script')
-    script.src = 'https://api-maps.yandex.ru/2.1/?apikey=9e4db997-f532-41e0-8938-d905ec23cae7&lang=ru_RU'
-    script.async = true
-    script.onload = init
-    document.head.appendChild(script)
-  }, [])
-
-  // ── Map render ───────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !ymapsRef.current || !ymapsReady) return
-
-    const ymaps = ymapsRef.current
-    ymaps.ready(() => {
-      if (!mapObjRef.current) {
-        mapObjRef.current = new ymaps.Map(mapRef.current, {
-          center: [41.2995, 69.2401],
-          zoom: 12,
-          controls: ['zoomControl'],
-        })
-      }
-
-      const map = mapObjRef.current
-      map.geoObjects.removeAll()
-
-      filteredHouses.forEach(house => {
-        if (!house.lat || !house.lng || isNaN(house.lat) || isNaN(house.lng) ||
-          house.lat < 37 || house.lat > 46 || house.lng < 55 || house.lng > 74) return
-
-        const label = shortPrice(house.price)
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="38"><rect x="1" y="1" width="88" height="28" rx="14" fill="#3b82f6" stroke="white" stroke-width="1.5"/><text x="44" y="20" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="700" fill="white">${label}</text><polygon points="36,29 44,38 52,29" fill="#3b82f6"/></svg>`
-
-        const placemark = new ymaps.Placemark(
-          [house.lat, house.lng],
-          { hintContent: house.title },
-          {
-            iconLayout: 'default#imageWithContent',
-            iconImageHref: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
-            iconImageSize: [90, 38],
-            iconImageOffset: [-45, -38],
-          }
-        )
-        placemark.events.add('click', () => setSelected(house))
-        map.geoObjects.add(placemark)
-      })
-
-      if (filteredHouses.length > 0) {
-        try {
-          const bounds = map.geoObjects.getBounds()
-          if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 60 })
-        } catch { }
-      }
-    })
-  }, [filteredHouses, ymapsReady])
-
-  // Re-init map size on tab switch
-  useEffect(() => {
-    if (activeTab === 'map') {
-      setTimeout(() => {
-        try { mapObjRef.current?.container?.fitToViewport() } catch { }
-      }, 150)
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    return () => {
-      if (mapObjRef.current) {
-        try { mapObjRef.current.destroy() } catch { }
-        mapObjRef.current = null
-      }
-    }
-  }, [])
-
-  // ── Share ─────────────────────────────────────
-  const shareHouse = (house: House) => {
-    const text = [
-      `🏠 ${house.title}`,
-      `💰 ${formatPrice(house.price)}`,
-      house.rooms ? `🛏 ${house.rooms} xona` : '',
-      house.area ? `📐 ${house.area} m²` : '',
-      house.floor ? `🏢 ${house.floor}/${house.totalFloors || '?'}-qavat` : '',
-      house.jk ? `🏗 JK: ${house.jk}` : '',
-      house.district ? `📍 ${house.district}` : '',
-      house.landmark ? `🗺 ${house.landmark}` : '',
-      house.yandex_url ? `\n🔗 ${house.yandex_url}` : '',
-    ].filter(Boolean).join('\n')
-
-    const url = house.yandex_url || 'https://maps.yandex.uz'
-    window.open(
-      `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
-      '_blank'
-    )
   }
 
-  const callSeller = () => { window.location.href = 'tel:+998915514499' }
-
-  // ─────────────────────────────────────────────
-  // LOADING / ERROR
-  // ─────────────────────────────────────────────
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center bg-slate-900" style={{ height: '100dvh' }}>
-      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="text-slate-400 text-sm">Ma'lumotlar yuklanmoqda...</p>
-    </div>
-  )
-
-  if (error && houses.length === 0) return (
-    <div className="flex flex-col items-center justify-center bg-slate-900 gap-4 px-6" style={{ height: '100dvh' }}>
-      <p className="text-red-400 text-center text-sm">{error}</p>
-      <button className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm" onClick={() => loadHouses(true)}>
-        Qayta urinish
-      </button>
-    </div>
-  )
-
-  // ─────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────
   return (
-    <div className="flex flex-col bg-slate-900 text-white" style={{ height: '100dvh', overflow: 'hidden' }}>
+    <div className="relative h-screen w-full overflow-hidden bg-[#f2f2f7]">
 
-      {/* ── HEADER ── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-white/10 flex-shrink-0">
-        <div>
-          <h1 className="text-sm font-bold tracking-widest text-white uppercase">Mulk Invest</h1>
-          <p className="text-xs text-slate-400 mt-0.5">{filteredHouses.length} ta ob'ekt</p>
-        </div>
-        <button
-          onClick={() => loadHouses(true)}
-          disabled={syncing}
-          className="text-slate-400 hover:text-white transition-colors p-1.5"
+      {/* 🔴 MAP LAYER */}
+      <div className="absolute inset-0 z-0">
+        <MapContainer
+          center={[41.2995, 69.2401]}
+          zoom={13}
+          zoomControl={false}
+          minZoom={12}
+          maxZoom={18}
+          maxBounds={[
+            [41.0, 68.8],
+            [41.6, 69.6],
+          ]}
+          maxBoundsViscosity={1.0}
+          className="h-full w-full"
         >
-          <IconRefresh spinning={syncing} />
-        </button>
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          />
+          <MapController selected={selected} filteredHouses={filteredHouses} isSearching={searchQuery.trim().length > 0} />
+
+          <MarkerClusterGroup iconCreateFunction={createClusterIcon}>
+            {filteredHouses.map((h) => (
+              <Marker
+                key={h.id}
+                position={[h.lat, h.lng]}
+                icon={createPriceIcon(h.price)}
+                eventHandlers={{
+                  click: () => setSelected(h),
+                }}
+              />
+            ))}
+          </MarkerClusterGroup>
+        </MapContainer>
       </div>
 
-      {/* ── TABS ── */}
-      <div className="flex bg-slate-800/80 border-b border-white/10 flex-shrink-0">
-        {([
-          { id: 'gallery' as Tab, label: 'Galereya', Icon: IconGrid },
-          { id: 'map' as Tab, label: 'Xaritada', Icon: IconMap },
-          { id: 'filter' as Tab, label: 'Filtrlash', Icon: IconFilter },
-        ]).map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-all relative ${activeTab === id ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'
-              }`}
+      {/* 🔵 MAP VIEW CONTROLS */}
+      <AnimatePresence>
+        {view === "map" && !selected && !showDetail && !isFilterOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="absolute top-5 left-0 right-0 z-[10] px-4 flex gap-2 pointer-events-none items-center"
           >
-            <Icon />
-            {label}
-            {id === 'filter' && activeFiltersCount > 0 && (
-              <span className="absolute top-1.5 right-4 w-4 h-4 bg-blue-500 rounded-full text-[10px] flex items-center justify-center text-white font-bold">
-                {activeFiltersCount}
-              </span>
-            )}
-            {activeTab === id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400 rounded-t-full" />
-            )}
-          </button>
-        ))}
-      </div>
+            <button
+              onClick={() => setView("gallery")}
+              className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-[14px] px-3 py-3 shadow-[0_4px_15px_rgba(0,0,0,0.08)] flex items-center justify-center gap-1 border border-gray-100 flex-shrink-0 active:scale-95 transition-transform"
+            >
+              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
 
-      {/* ── CONTENT ── */}
-      <div className="flex-1 relative" style={{ minHeight: 0 }}>
+            <div className="flex-1 bg-white/95 backdrop-blur-md rounded-[14px] flex items-center px-3 py-2.5 border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.08)] pointer-events-auto">
+              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
+              <input
+                type="text"
+                placeholder={t.search}
+                className="bg-transparent border-none outline-none ml-2 w-full text-[13px] font-bold text-gray-900 placeholder-gray-400"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
 
-        {/* MAP */}
-        <div
-          className="absolute inset-0"
-          style={{ display: activeTab === 'map' ? 'block' : 'none' }}
-        >
-          <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-        </div>
+            <button
+              onClick={() => setIsFilterOpen(true)}
+              className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-[14px] p-3 shadow-[0_4px_15px_rgba(0,0,0,0.08)] border border-gray-100 flex-shrink-0 active:scale-95 transition-transform"
+            >
+              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* GALLERY */}
-        {activeTab === 'gallery' && (
-          <div className="absolute inset-0 overflow-y-auto p-3 space-y-3">
-            {filteredHouses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 text-slate-500 gap-2">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                <p className="text-sm">Hech narsa topilmadi</p>
-                <button onClick={() => setFilters(EMPTY_FILTERS)} className="text-blue-400 text-xs underline">
-                  Filtrni tozalash
+      {/* 🟡 GALLERY VIEW LAYER */}
+      <AnimatePresence>
+        {view === "gallery" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[20] overflow-y-auto bg-[#f2f2f7]"
+          >
+            {/* Header Sticky */}
+            <div className="sticky top-0 z-[30] bg-white rounded-b-[24px] shadow-sm flex flex-col px-4 pt-4 pb-2 space-y-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-[#FFD600] rounded-md flex items-center justify-center">
+                    <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                  </div>
+                  <span className="font-extrabold text-[19px] tracking-tight text-black">MULK INVEST</span>
+                </div>
+                <a href="https://instagram.com/mulk_invest" target="_blank" className="flex items-center gap-1.5 bg-gray-50 py-1.5 px-3 rounded-full border border-gray-200 active:scale-95 transition-transform">
+                  <svg className="w-4 h-4 text-[#E1306C]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm3.98-10.822a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" /></svg>
+                  <span className="text-[12px] font-bold text-gray-800">@mulk_invest</span>
+                </a>
+
+                <div className="relative">
+                  <select
+                    value={lang}
+                    onChange={(e) => setLang(e.target.value as any)}
+                    className="appearance-none bg-gray-100 text-gray-800 text-[12px] font-black pl-3 pr-7 py-2 rounded-xl outline-none cursor-pointer border border-gray-200 shadow-sm"
+                  >
+                    <option value="uz">UZB</option>
+                    <option value="ru">РУС</option>
+                    <option value="en">ENG</option>
+                  </select>
+                  <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <div className="flex-1 bg-gray-100/80 rounded-[14px] flex items-center px-4 py-3 border border-gray-200">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
+                  <input
+                    type="text"
+                    placeholder={t.search}
+                    className="bg-transparent border-none outline-none ml-2 w-full text-[14px] font-bold text-gray-900 placeholder-gray-400"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-1.5 w-full pt-1">
+                <button className="flex-1 bg-[#FFD600] text-black font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 shadow-sm border border-yellow-400">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z" /></svg>
+                  {t.gallery}
+                </button>
+                <button onClick={() => setView("map")} className="flex-1 bg-gray-100 text-gray-800 font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 border border-gray-200 active:bg-gray-200 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                  {t.map}
+                </button>
+                <button onClick={() => setIsFilterOpen(true)} className="flex-[0.8] bg-gray-100 text-gray-800 font-extrabold py-3 rounded-[14px] text-[13px] flex justify-center items-center gap-1.5 border border-gray-200 active:bg-gray-200 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                  {t.filter}
                 </button>
               </div>
-            ) : filteredHouses.map(house => (
-              <GalleryCard key={house.id} house={house} onClick={() => setSelected(house)} />
-            ))}
-          </div>
-        )}
-
-        {/* FILTER */}
-        {activeTab === 'filter' && (
-          <FilterPanel
-            filters={filters}
-            setFilters={setFilters}
-            onApply={() => setActiveTab('map')}
-            onReset={() => setFilters(EMPTY_FILTERS)}
-          />
-        )}
-      </div>
-
-      {/* ── DETAIL SHEET ── */}
-      {selected && (
-        <DetailSheet
-          house={selected}
-          onClose={() => setSelected(null)}
-          onShare={() => shareHouse(selected)}
-          onCall={callSeller}
-        />
-      )}
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes slideUp {
-          from { transform: translateY(100%); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-        .slide-up { animation: slideUp 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) both; }
-      `}</style>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────
-// GALLERY CARD
-// ─────────────────────────────────────────────
-function GalleryCard({ house, onClick }: { house: House; onClick: () => void }) {
-  const priceLabel = house.price
-    ? (house.price < 500_000 ? `$${house.price.toLocaleString('en')}` : `${(house.price / 1_000_000).toFixed(1)}M so'm`)
-    : '—'
-
-  return (
-    <button
-      onClick={onClick}
-      className="w-full text-left bg-slate-800 rounded-2xl overflow-hidden border border-white/5 active:scale-[0.98] transition-transform"
-    >
-      {/* Photo placeholder */}
-      <div className="h-44 bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center relative">
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.2">
-          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-        {house.jk && (
-          <span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[11px] px-2 py-0.5 rounded-full font-semibold">
-            Yangi
-          </span>
-        )}
-        <span className="absolute bottom-2.5 right-2.5 bg-black/65 text-white text-sm font-bold px-2.5 py-1 rounded-xl">
-          {priceLabel}
-        </span>
-      </div>
-
-      <div className="p-3.5">
-        <p className="font-semibold text-sm leading-snug mb-2 line-clamp-2">{house.title}</p>
-
-        <div className="flex items-center gap-1 text-xs text-slate-400 mb-2">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-          </svg>
-          <span className="truncate">{house.district || house.landmark || 'Toshkent'}</span>
-        </div>
-
-        <div className="flex gap-3 text-xs text-slate-300">
-          {house.rooms > 0 && <span>🛏 {house.rooms} xona</span>}
-          {house.area > 0 && <span>📐 {house.area} m²</span>}
-          {house.floor > 0 && <span>🏢 {house.floor}/{house.totalFloors || '?'}</span>}
-        </div>
-      </div>
-    </button>
-  )
-}
-
-// ─────────────────────────────────────────────
-// DETAIL SHEET
-// ─────────────────────────────────────────────
-function DetailSheet({
-  house, onClose, onShare, onCall
-}: { house: House; onClose: () => void; onShare: () => void; onCall: () => void }) {
-  const priceStr = house.price
-    ? (house.price < 500_000
-      ? `$${house.price.toLocaleString('en')}`
-      : `${(house.price / 1_000_000).toFixed(1)} mln so'm`)
-    : '—'
-
-  return (
-    <div
-      className="absolute inset-0 z-50 flex flex-col justify-end"
-      style={{ background: 'rgba(0,0,0,0.65)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="slide-up bg-slate-900 rounded-t-3xl border-t border-white/10 flex flex-col relative"
-        style={{ maxHeight: '88dvh' }}>
-
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-9 h-1 bg-slate-600 rounded-full" />
-        </div>
-
-        {/* Close */}
-        <button onClick={onClose} className="absolute top-3 right-4 text-slate-500 hover:text-white p-1 transition-colors">
-          <IconClose />
-        </button>
-
-        {/* Scroll area */}
-        <div className="overflow-y-auto flex-1 px-4 pt-1 pb-2">
-          {/* Photo */}
-          <div className="h-48 bg-gradient-to-br from-slate-700 to-slate-600 rounded-2xl mb-4 flex items-center justify-center relative">
-            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            {house.jk && (
-              <span className="absolute top-3 left-3 bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-semibold">
-                Yangi qurilish
-              </span>
-            )}
-          </div>
-
-          {/* Price + name */}
-          <div className="mb-4">
-            <p className="text-2xl font-bold text-blue-400 mb-1">{priceStr}</p>
-            <h2 className="text-base font-semibold leading-snug text-white">{house.title}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">CRM #{house.id}</p>
-          </div>
-
-          {/* Info chips */}
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {house.rooms > 0 && <InfoChip icon="🛏" label="Xonalar" value={`${house.rooms} ta`} />}
-            {house.area > 0 && <InfoChip icon="📐" label="Maydon" value={`${house.area} m²`} />}
-            {house.floor > 0 && <InfoChip icon="🏢" label="Qavat" value={`${house.floor}/${house.totalFloors || '?'}`} />}
-            {house.district && <InfoChip icon="📍" label="Tuman" value={house.district} />}
-          </div>
-
-          {/* JK */}
-          {house.jk && (
-            <InfoBlock label="Zhiloy Kompleks" value={house.jk} />
-          )}
-
-          {/* Landmark */}
-          {house.landmark && (
-            <InfoBlock label="Mo'ljal 🗺" value={house.landmark} />
-          )}
-
-          {/* Description */}
-          {house.description && (
-            <div className="bg-slate-800/80 rounded-xl px-3.5 py-3 mb-3">
-              <p className="text-xs text-slate-400 mb-1">Tavsif</p>
-              <p className="text-sm text-slate-300 leading-relaxed">{house.description}</p>
+              <div className="flex border-b border-gray-100 pb-0 mt-1">
+                <span className="text-[#FFD600] font-black text-[14px] border-b-[3px] border-[#FFD600] pb-2 px-1 rounded-t-sm">{t.latest}</span>
+              </div>
             </div>
-          )}
 
-          {/* Map link */}
-          {house.yandex_url && (
-            <a href={house.yandex_url} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2 bg-slate-800/80 rounded-xl px-3.5 py-3 mb-4 hover:bg-slate-700/80 transition-colors">
-              <span>📍</span>
-              <span className="text-sm text-blue-400 font-medium">Yandex Xaritada ko'rish ↗</span>
-            </a>
-          )}
-        </div>
+            {/* Grid List for Gallery */}
+            <div className="grid grid-cols-2 gap-3 p-4 pb-24">
+              {sortedHouses.map((h) => (
+                <div
+                  key={h.id}
+                  onClick={() => { setSelected(h); setShowDetail(true) }}
+                  className="bg-white rounded-[16px] overflow-hidden shadow-[0_4px_15px_rgba(0,0,0,0.05)] border border-gray-100 active:scale-95 transition-transform"
+                >
+                  <div className="relative h-[120px] w-full">
+                    <img src={h.image} className="w-full h-full object-cover" />
+                    {h.hot && (
+                      <span className="absolute top-2 right-2 bg-[#FFD600] text-black text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">TOP</span>
+                    )}
+                    {h.discount ? (
+                      <span className="absolute top-2 left-2 bg-red-600 shadow-md border border-red-500/50 text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-0.5">
+                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        -{h.discount}%
+                      </span>
+                    ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+                    <span className="absolute bottom-2 right-2 text-white font-bold text-[10px] drop-shadow-md">{h.area} m²</span>
+                  </div>
+                  <div className="p-3">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <p className={`font-black text-[14px] leading-tight ${h.discount ? 'text-red-600' : 'text-gray-900'}`}>{h.price}</p>
+                      {h.oldPrice && <p className="text-gray-400 text-[10px] font-bold line-through pt-[1px]">{h.oldPrice}</p>}
+                    </div>
+                    <p className="text-gray-900 text-[12px] font-bold leading-snug line-clamp-1 mb-1">{h.title}</p>
+                    <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-gray-500 font-medium line-clamp-2">
+                      {h.landmark && <p className="flex items-center gap-1 text-gray-600">Location: {h.landmark}</p>}
+                      {h.description && <p className="line-clamp-1">{h.description}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {sortedHouses.length === 0 && (
+                <div className="col-span-2 text-center text-gray-400 py-10 font-bold">Hech nima topilmadi...</div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Action buttons */}
-        <div className="flex gap-2.5 px-4 py-3 border-t border-white/8 flex-shrink-0 pb-safe"
-          style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
-          <button onClick={onShare}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">
-            <IconShare />
-            Ulashish
-          </button>
-          <button onClick={onCall}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold transition-colors">
-            <IconPhone />
-            Sotuvchi
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+      {/* 🟠 BOTTOM SHEET */}
+      <AnimatePresence>
+        {selected && !showDetail && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelected(null)}
+              className="absolute inset-0 z-[1010] bg-black/30 backdrop-blur-[1px]"
+            />
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.2}
+              onDragEnd={(e, info) => { if (info.offset.y > 100) setSelected(null) }}
+              className="absolute bottom-0 left-0 w-full z-[1020] bg-white rounded-t-[24px] shadow-[0_-10px_40px_rgb(0,0,0,0.1)] pb-8 pt-3 px-4 md:px-0"
+            >
+              <div className="max-w-md mx-auto relative px-1">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
 
-function InfoChip({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div className="bg-slate-800/80 rounded-xl px-3 py-2.5">
-      <div className="flex items-center gap-1 mb-0.5">
-        <span className="text-sm">{icon}</span>
-        <p className="text-xs text-slate-400">{label}</p>
-      </div>
-      <p className="text-sm font-semibold text-white">{value}</p>
-    </div>
-  )
-}
+                {/* ✅ BOTTOM SHEET RASM — balandligi cheklangan */}
+                <div className="relative w-full h-[220px] rounded-[16px] overflow-hidden mb-4 border border-gray-200 flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] bg-black">
+                  {selected.images && selected.images.length > 0 ? (
+                    selected.images.map((img, idx) => (
+                      <div key={idx} className="min-w-full h-full relative snap-center shrink-0">
+                        <img src={img} alt={selected.title} className="w-full h-full object-cover" />
+                        <div className="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md z-20 pointer-events-none">
+                          {idx + 1} / {selected.images?.length}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="min-w-full h-full relative shrink-0">
+                      <img src={selected.image} alt={selected.title} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  {selected.hot && (
+                    <div className="absolute top-3 left-3 bg-[#FFD600] text-black font-extrabold text-[11px] px-3 py-1.5 rounded-md shadow-md uppercase tracking-wider z-10 pointer-events-none">TOP E'lon</div>
+                  )}
+                  {selected.crmId && (
+                    <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white font-bold text-[10px] px-2 py-1 rounded-md uppercase tracking-wider z-10 pointer-events-none">ID: {selected.crmId}</div>
+                  )}
+                </div>
 
-function InfoBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-slate-800/80 rounded-xl px-3.5 py-3 mb-3">
-      <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-      <p className="text-sm font-medium text-white">{value}</p>
-    </div>
-  )
-}
+                <div className="mb-4 text-left">
+                  <h2 className="text-[18px] font-black text-black leading-tight mb-1">{selected.title}</h2>
+                  <p className="text-gray-500 text-[14px] line-clamp-1 leading-relaxed">{selected.description}</p>
+                </div>
+                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-[16px] border border-gray-200">
+                  <div className="flex flex-col ml-1">
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Narxi</span>
+                    <span className="text-2xl font-black text-black leading-none">{selected.price}</span>
+                  </div>
+                  <button
+                    onClick={() => setShowDetail(true)}
+                    className="bg-[#FFD600] border border-yellow-400 text-black font-extrabold py-3.5 px-8 rounded-[12px] active:scale-95 transition-transform text-[14px] shadow-sm ml-2">
+                    Batafsil
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-// ─────────────────────────────────────────────
-// FILTER PANEL
-// ─────────────────────────────────────────────
-function FilterPanel({
-  filters, setFilters, onApply, onReset
-}: {
-  filters: Filters
-  setFilters: React.Dispatch<React.SetStateAction<Filters>>
-  onApply: () => void
-  onReset: () => void
-}) {
-  const set = (key: keyof Filters) => (val: string) =>
-    setFilters(f => ({ ...f, [key]: val }))
-
-  return (
-    <div className="absolute inset-0 overflow-y-auto bg-slate-900"
-      style={{ paddingBottom: 'max(80px, calc(80px + env(safe-area-inset-bottom, 0px)))' }}>
-      <div className="p-4 space-y-5">
-
-        <FilterSection title="Rayon">
-          <select
-            className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-3 text-sm text-white"
-            value={filters.district}
-            onChange={e => set('district')(e.target.value)}
+      {/* 🔴 FULL SCREEN DETAILS VIEW */}
+      <AnimatePresence>
+        {showDetail && selected && (
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            className="absolute inset-0 z-[3000] bg-white overflow-y-auto"
           >
-            <option value="">Barcha tumanlar</option>
-            {DISTRICTS.map(d => <option key={d} value={d.toLowerCase()}>{d}</option>)}
-          </select>
-        </FilterSection>
-
-        <FilterSection title="Uy turi">
-          <div className="flex gap-2">
-            {([
-              { val: 'all', label: 'Barchasi' },
-              { val: 'new', label: 'Novostroyka' },
-              { val: 'secondary', label: 'Vtorichka' },
-            ] as const).map(opt => (
+            {/* ✅ DETAIL RASM — max balandligi cheklangan */}
+            <div className="relative w-full bg-black">
+              <div className="flex overflow-x-auto snap-x snap-mandatory w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: '60vh' }}>
+                {selected.images && selected.images.length > 0 ? (
+                  selected.images.map((img, idx) => (
+                    <div key={idx} className="min-w-full relative snap-center shrink-0" style={{ maxHeight: '60vh' }}>
+                      <img src={img} className="w-full h-full object-cover" style={{ maxHeight: '60vh' }} />
+                      <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md z-20 pointer-events-none shadow-md border border-white/20">
+                        {idx + 1} / {selected.images?.length}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="min-w-full relative shrink-0" style={{ maxHeight: '60vh' }}>
+                    <img src={selected.image} className="w-full h-full object-cover" style={{ maxHeight: '60vh' }} />
+                  </div>
+                )}
+              </div>
               <button
-                key={opt.val}
-                onClick={() => setFilters(f => ({ ...f, type: opt.val }))}
-                className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${filters.type === opt.val
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-800 text-slate-300 border border-white/10'
-                  }`}
+                onClick={() => {
+                  setShowDetail(false);
+                  if (view === "gallery") setSelected(null);
+                }}
+                className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/40 backdrop-blur-md flex justify-center items-center rounded-full text-white active:scale-95 transition-transform"
               >
-                {opt.label}
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
               </button>
-            ))}
-          </div>
-        </FilterSection>
 
-        <FilterSection title="Xonalar soni">
-          <RangeRow
-            minVal={filters.roomMin} maxVal={filters.roomMax}
-            onMin={set('roomMin')} onMax={set('roomMax')}
-          />
-        </FilterSection>
+              <div className="absolute bottom-0 left-0 right-0 p-5 pt-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none flex flex-col justify-end">
+                <div>
+                  {selected.crmId && <span className="bg-[#FFD600] text-black font-extrabold px-2.5 py-1 rounded-md text-[11px] uppercase tracking-wider mb-2.5 inline-block shadow-md pointer-events-auto">ID: {selected.crmId}</span>}
+                </div>
+                <h1 className="text-[26px] font-black text-white leading-tight drop-shadow-lg pointer-events-auto">{selected.title}</h1>
+              </div>
+            </div>
 
-        <FilterSection title="Kvadratura (m²)">
-          <RangeRow
-            minVal={filters.areaMin} maxVal={filters.areaMax}
-            onMin={set('areaMin')} onMax={set('areaMax')}
-          />
-        </FilterSection>
+            <div className="p-5 pb-28">
+              <p className="text-3xl font-black text-black mb-6">{selected.price}</p>
 
-        <FilterSection title="Umumiy qavatlar">
-          <RangeRow
-            minVal={filters.floorsMin} maxVal={filters.floorsMax}
-            onMin={set('floorsMin')} onMax={set('floorsMax')}
-          />
-        </FilterSection>
+              <div className="flex justify-around items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-8 shadow-sm">
+                <div className="flex flex-col items-center">
+                  <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                  <span className="font-black text-[16px] text-gray-900">{selected.rooms || '—'}</span>
+                  <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.room}</span>
+                </div>
+                <div className="w-px h-10 bg-gray-200"></div>
+                <div className="flex flex-col items-center">
+                  <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                  <span className="font-black text-[16px] text-gray-900">{selected.area ? selected.area + " m²" : '—'}</span>
+                  <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.area}</span>
+                </div>
+                <div className="w-px h-10 bg-gray-200"></div>
+                <div className="flex flex-col items-center">
+                  <svg className="w-6 h-6 text-gray-800 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                  <span className="font-black text-[16px] text-gray-900">{selected.floor ? selected.floor + "/" + (selected.totalFloors || '—') : '—'}</span>
+                  <span className="text-gray-400 text-[10px] font-bold uppercase mt-0.5 tracking-wider">{t.floor}</span>
+                </div>
+              </div>
 
-        <FilterSection title="Qavat">
-          <RangeRow
-            minVal={filters.floorMin} maxVal={filters.floorMax}
-            onMin={set('floorMin')} onMax={set('floorMax')}
-          />
-        </FilterSection>
+              <div className="flex flex-col gap-1 mb-8 px-2">
+                {selected.buildingType && (
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                    <span className="text-gray-500 font-bold text-[14px]">{t.bType}</span>
+                    <span className="text-black font-black text-[15px]">{selected.buildingType}</span>
+                  </div>
+                )}
+                {selected.landmark && (
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                    <span className="text-gray-500 font-bold text-[14px]">{t.landmark}</span>
+                    <span className="text-black font-black text-[15px]">{selected.landmark}</span>
+                  </div>
+                )}
+              </div>
 
-        <FilterSection title="Narx ($)">
-          <RangeRow
-            minVal={filters.priceMin} maxVal={filters.priceMax}
-            onMin={set('priceMin')} onMax={set('priceMax')}
-          />
-        </FilterSection>
-      </div>
+              <h3 className="font-black text-gray-900 mb-3 text-[18px]">{t.desc}</h3>
+              <p className="text-gray-600 leading-relaxed text-[15px]">
+                {selected.description}
+              </p>
+            </div>
 
-      {/* Fixed apply/reset */}
-      <div className="fixed bottom-0 left-0 right-0 flex gap-3 px-4 py-3 bg-slate-900/95 border-t border-white/10"
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
-        <button onClick={onReset}
-          className="flex-1 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">
-          Tozalash
-        </button>
-        <button onClick={onApply}
-          className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold transition-colors">
-          Qo'llash →
-        </button>
-      </div>
-    </div>
-  )
-}
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-5 z-20">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText("+998909059990");
+                  alert("Raqam nusxa olindi: +998 90 905 99 90");
+                  window.location.href = "tel:+998909059990";
+                }}
+                className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-sm active:scale-95 transition-transform flex justify-center items-center gap-2"
+              >
+                <svg className="w-5 h-5 inline-block mx-1" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                {t.call}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">{title}</p>
-      {children}
-    </div>
-  )
-}
-
-function RangeRow({
-  minVal, maxVal, onMin, onMax
-}: { minVal: string; maxVal: string; onMin: (v: string) => void; onMax: (v: string) => void }) {
-  return (
-    <div className="flex gap-2 items-center">
-      <input type="number" placeholder="dan"
-        value={minVal} onChange={e => onMin(e.target.value)}
-        className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-3 text-sm text-white placeholder-slate-600 focus:border-blue-500 outline-none"
-      />
-      <span className="text-slate-600 font-bold">—</span>
-      <input type="number" placeholder="gacha"
-        value={maxVal} onChange={e => onMax(e.target.value)}
-        className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-3 text-sm text-white placeholder-slate-600 focus:border-blue-500 outline-none"
-      />
+      {/* 🟣 FILTER MODAL */}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            className="absolute inset-0 z-[4000] bg-white overflow-y-auto"
+          >
+            <div className="sticky top-0 bg-white/90 backdrop-blur-xl px-5 py-4 flex items-center justify-between border-b border-gray-100 z-10">
+              <h2 className="text-2xl font-black text-black">{t.filter}</h2>
+              <button onClick={() => setIsFilterOpen(false)} className="bg-gray-100 p-2.5 rounded-full text-gray-800 active:scale-95">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-5 pb-32">
+              <div>
+                <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Tuman / Ko'cha</label>
+                <input type="text" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900 transition-colors" placeholder="Yozing..." />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Narx (dan)</label>
+                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="0 $" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Narx (gacha)</label>
+                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="Max" />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Xonalar (dan)</label>
+                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="1" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Xonalar (gacha)</label>
+                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="5" />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Maydon m² (dan)</label>
+                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="30" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Maydon m² (gacha)</label>
+                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="200" />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Qavat</label>
+                  <input type="number" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="Etaj" />
+                </div>
+                <div className="flex-[2]">
+                  <label className="text-[13px] font-bold text-gray-500 mb-1.5 block">Turar joy majmuasi</label>
+                  <input type="text" className="w-full bg-gray-50 border border-gray-200 focus:border-[#FFD600] rounded-xl px-4 py-3 outline-none font-bold text-gray-900" placeholder="Nomi" />
+                </div>
+              </div>
+            </div>
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-5">
+              <button onClick={() => setIsFilterOpen(false)} className="w-full bg-[#FFD600] text-black font-extrabold py-4 rounded-xl text-[16px] shadow-sm active:scale-95 transition-all">
+                Natijalarni ko'rsatish
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
