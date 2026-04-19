@@ -6,11 +6,12 @@ const CACHE = join(process.cwd(), 'public', 'photos_cache.json')
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { crmId: string } }
+  { params }: { params: Promise<{ crmId: string }> }
 ) {
   try {
+    const { crmId } = await params
     const cache = JSON.parse(readFileSync(CACHE, 'utf-8'))
-    const entry = cache[params.crmId]
+    const entry = cache[crmId]
     if (!entry?.file_id) return new NextResponse(null, { status: 404 })
 
     const token = process.env.TELEGRAM_BOT_TOKEN
