@@ -27,5 +27,6 @@ model House {
   totalFloors Int      @default(0)
   buildingType String  @default("Novostroyka")
   landmark    String   @default("")
+  district    String?
   createdAt   DateTime @default(now())
 }

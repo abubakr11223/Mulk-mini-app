@@ -1,173 +1,148 @@
-require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
+// amocrm-sync.js
+// amoCRM dan barcha lidlarni location bilan sinxronlash
 
-const prisma = new PrismaClient();
-const TOKEN = process.env.AMOCRM_TOKEN;
-const SUBDOMAIN = process.env.AMOCRM_SUBDOMAIN || 'mulk';
-const BASE_URL = `https://${SUBDOMAIN}.amocrm.ru/api/v4`;
+const AMO_SUBDOMAIN = process.env.AMO_SUBDOMAIN   // .env dan
+const AMO_TOKEN = process.env.AMO_TOKEN        // .env dan
 
-// Faqat "Mulk mini app" ustunidagi leadlarni ol
-const PIPELINE_ID = 10512362;
-const STATUS_ID = 85060666;
+// amoCRM da "Адрес Я.Карта" field ID sini topish
+async function getYandexFieldId() {
+  const res = await fetch(
+    `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads/custom_fields`,
+    { headers: { Authorization: `Bearer ${AMO_TOKEN}` } }
+  )
+  const data = await res.json()
+  const fields = data._embedded?.custom_fields || []
 
-function parseCustomFields(fields) {
-  let rooms = null, area = null, floor = null, totalFloors = null;
-  let description = '', landmark = '', buildingType = '';
+  // Field nomini qidirish (Yandex, карта, адрес)
+  const yandexField = fields.find(f =>
+    f.name?.toLowerCase().includes('яндекс') ||
+    f.name?.toLowerCase().includes('карта') ||
+    f.name?.toLowerCase().includes('адрес') ||
+    f.name?.toLowerCase().includes('yandex')
+  )
 
-  if (!fields) return { rooms, area, floor, totalFloors, description, landmark, buildingType };
-
-  const FIELD_MAP = {
-    'xona': 'rooms', 'хона': 'rooms', 'комнат': 'rooms',
-    'qavat': 'floor', 'этаж': 'floor', 'floor': 'floor',
-    'umumiy qavat': 'totalFloors', 'всего этажей': 'totalFloors',
-    'yuzasi': 'area', 'maydon': 'area', 'sotix': 'area',
-    'площадь': 'area', 'кв.м': 'area',
-    'описание': 'description', 'izoh': 'description',
-    'район': 'landmark', 'tuman': 'landmark',
-    'bino turi': 'buildingType', 'тип': 'buildingType',
-  };
-
-  for (const cf of fields) {
-    const name = (cf.field_name || '').toLowerCase();
-    const value = cf.values?.[0]?.value;
-    if (!value) continue;
-
-    let mappedKey = null;
-    for (const [key, val] of Object.entries(FIELD_MAP)) {
-      if (name.includes(key)) { mappedKey = val; break; }
-    }
-    if (!mappedKey) continue;
-
-    if (mappedKey === 'rooms') {
-      const v = parseInt(String(value).replace(/\D/g, ''));
-      rooms = (!isNaN(v) && v > 0 && v < 50) ? v : null;
-    } else if (mappedKey === 'area') {
-      const v = parseFloat(String(value).replace(/[^\d.]/g, ''));
-      area = (!isNaN(v) && v > 0 && v < 5000) ? v : null;
-    } else if (mappedKey === 'floor') {
-      const v = parseInt(String(value).replace(/\D/g, ''));
-      floor = (!isNaN(v) && v > 0 && v < 150) ? v : null;
-    } else if (mappedKey === 'totalFloors') {
-      const v = parseInt(String(value).replace(/\D/g, ''));
-      totalFloors = (!isNaN(v) && v > 0 && v < 150) ? v : null;
-    } else if (mappedKey === 'description') {
-      description = String(value);
-    } else if (mappedKey === 'landmark') {
-      landmark = String(value);
-    } else if (mappedKey === 'buildingType') {
-      buildingType = String(value);
-    }
+  if (!yandexField) {
+    console.log('Mavjud fieldlar:')
+    fields.forEach(f => console.log(`  ID: ${f.id}  Nomi: ${f.name}`))
+    throw new Error('Yandex Maps field topilmadi! Yuqoridagi ID lardan to\'g\'risini tanlang')
   }
 
-  return { rooms, area, floor, totalFloors, description, landmark, buildingType };
+  console.log(`✅ Field topildi: "${yandexField.name}" — ID: ${yandexField.id}`)
+  return yandexField.id
 }
 
-async function syncLeads() {
-  console.log(`[SYNC] ${new Date().toISOString()} — "Mulk mini app" statusidagi leadlar yangilanmoqda...`);
-  let page = 1;
-  let totalSynced = 0;
+// Barcha lidlarni sahifalab olish
+async function fetchAllLeads(fieldId) {
+  let page = 1
+  const allLeads = []
 
   while (true) {
-    const params = new URLSearchParams({
-      limit: 50,
-      page: page,
-      with: 'custom_fields',
-      'filter[statuses][0][pipeline_id]': PIPELINE_ID,
-      'filter[statuses][0][status_id]': STATUS_ID,
-    });
-
-    const url = `${BASE_URL}/leads?${params.toString()}`;
-    const res = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${TOKEN}` }
-    });
-
-    if (res.status === 204) break;
-    if (!res.ok) {
-      console.error(`[SYNC] AmoCRM error: ${res.status}`);
-      break;
-    }
-
-    const data = await res.json();
-    const leads = data._embedded?.leads || [];
-    if (!leads.length) break;
-
-    console.log(`[SYNC] Page ${page}: ${leads.length} ta lead topildi`);
-
-    for (const lead of leads) {
-      const crmId = String(lead.id);
-      const title = lead.name || 'Yangi Mulk';
-      const rawPrice = lead.price || 0;
-      const price = rawPrice > 0 ? `${Number(rawPrice).toLocaleString()} $` : 'Kelishilgan';
-
-      const { rooms, area, floor, totalFloors, description, landmark, buildingType } =
-        parseCustomFields(lead.custom_fields_values);
-
-      // Narx o'zgardi — oldPrice va discount hisoblash
-      const existing = await prisma.house.findUnique({ where: { crmId } });
-      let oldPrice = null;
-      let discount = null;
-
-      if (existing && existing.price !== price) {
-        const oldNum = parseInt(existing.price.replace(/\D/g, ''));
-        const newNum = parseInt(String(rawPrice));
-        if (newNum > 0 && oldNum > 0 && newNum < oldNum) {
-          oldPrice = existing.price;
-          discount = Math.round(((oldNum - newNum) / oldNum) * 100);
-        }
-      }
-
-      const updateData = {
-        price, // Narx HAR DOIM yangilanadi
-        title,
-        ...(oldPrice ? { oldPrice } : {}),
-        ...(discount ? { discount } : {}),
-        ...(rooms !== null ? { rooms } : {}),
-        ...(area !== null ? { area } : {}),
-        ...(floor !== null ? { floor } : {}),
-        ...(totalFloors !== null ? { totalFloors } : {}),
-        ...(description ? { description } : {}),
-        ...(landmark ? { landmark } : {}),
-        ...(buildingType ? { buildingType } : {}),
-      };
-
-      const createData = {
-        crmId,
-        title,
-        price,
-        // Koordinatalar tasodifiy — keyinchalik bot orqali aniqlanadi
-        lat: 41.311081 + (Math.random() * 0.06),
-        lng: 69.240562 + (Math.random() * 0.06),
-        rooms: rooms || 0,
-        area: area || 0,
-        floor: floor || 1,
-        totalFloors: totalFloors || 1,
-        description: description || '',
-        landmark: landmark || '',
-        buildingType: buildingType || 'Novostroyka',
-      };
-
-      await prisma.house.upsert({
-        where: { crmId },
-        update: updateData,
-        create: createData,
-      });
-
-      totalSynced++;
-    }
-
-    if (!data._links?.next) break;
-    page++;
+    const res = await fetch(
+      `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?limit=250&page=${page}&with=custom_fields`,
+      { headers: { Authorization: `Bearer ${AMO_TOKEN}` } }
+    )
+    const data = await res.json()
+    const leads = data._embedded?.leads || []
+    if (leads.length === 0) break
+    allLeads.push(...leads)
+    console.log(`  Sahifa ${page}: ${leads.length} ta lid`)
+    page++
   }
 
-  console.log(`[SYNC] Tayyor! ${totalSynced} ta lead yangilandi.`);
+  console.log(`📋 Jami: ${allLeads.length} ta lid`)
+  return allLeads
 }
 
-// Darhol ishga tush
-syncLeads().catch(console.error);
+// Yandex qisqa havoladan koordinata olish
+async function resolveYandexUrl(yandexUrl) {
+  try {
+    // To'g'ridan-to'g'ri fetch — koordinata parse
+    const response = await fetch(yandexUrl, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    })
+    const finalUrl = response.url
+    const urlObj = new URL(finalUrl)
 
-// Har 2 daqiqada qayta ishla (120 soniya)
-setInterval(() => {
-  syncLeads().catch(console.error);
-}, 2 * 60 * 1000);
+    // ll param: "lng,lat"
+    const ll = urlObj.searchParams.get('ll')
+    if (ll) {
+      const [lng, lat] = ll.split(',').map(Number)
+      if (!isNaN(lat) && !isNaN(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+        return { lat, lng }
+      }
+    }
 
-console.log('[SYNC] Ishga tushdi. Har 2 daqiqada "Mulk mini app" statusidan avtosync qiladi.');
+    // pt param
+    const pt = urlObj.searchParams.get('pt')
+    if (pt) {
+      const [lng, lat] = pt.split(',').map(Number)
+      if (!isNaN(lat) && !isNaN(lng)) return { lat, lng }
+    }
+
+    // Path ichida
+    const m = finalUrl.match(/[/@](-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
+    if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+// Asosiy funksiya — barcha lidlarni o'tkazish
+export async function syncLeadsFromAmo() {
+  console.log('🚀 amoCRM sinxronlash boshlandi...')
+
+  const fieldId = await getYandexFieldId()
+  const leads = await fetchAllLeads(fieldId)
+
+  const results = []
+  let successCount = 0
+  let failCount = 0
+  let noLocationCount = 0
+
+  for (const lead of leads) {
+    const fields = lead.custom_fields_values || []
+    const yandexFld = fields.find(f => f.field_id == fieldId)
+    const yandexUrl = yandexFld?.values?.[0]?.value
+
+    if (!yandexUrl || !yandexUrl.includes('yandex')) {
+      noLocationCount++
+      results.push({ id: lead.id, name: lead.name, status: 'no_location' })
+      continue
+    }
+
+    const coords = await resolveYandexUrl(yandexUrl)
+
+    if (!coords) {
+      failCount++
+      console.warn(`  ❌ ${lead.id} — "${lead.name}" — koordinata topilmadi: ${yandexUrl}`)
+      results.push({ id: lead.id, name: lead.name, status: 'failed', url: yandexUrl })
+      continue
+    }
+
+    successCount++
+    results.push({
+      id: lead.id,
+      name: lead.name,
+      lat: coords.lat,
+      lng: coords.lng,
+      yandex_url: yandexUrl,
+      status: 'success'
+    })
+
+    // Rate limit — har 5 ta liddan keyin biroz kutish
+    if (successCount % 5 === 0) {
+      await new Promise(r => setTimeout(r, 300))
+    }
+  }
+
+  console.log(`\n📊 Natija:`)
+  console.log(`  ✅ Muvaffaqiyatli: ${successCount}`)
+  console.log(`  ❌ Xato:           ${failCount}`)
+  console.log(`  ⏭  Location yo'q:  ${noLocationCount}`)
+
+  // Faqat muvaffaqiyatli leadlarni qaytarish
+  return results.filter(r => r.status === 'success')
+}
