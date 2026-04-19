@@ -8,7 +8,7 @@ function readCache(): Record<string, any> {
   try { return JSON.parse(readFileSync(CACHE, 'utf-8')) } catch { return {} }
 }
 function saveCache(c: Record<string, any>) {
-  writeFileSync(CACHE, JSON.stringify(c, null, 2))
+  try { writeFileSync(CACHE, JSON.stringify(c, null, 2)) } catch {}
 }
 
 async function sendMsg(chatId: number, text: string) {
@@ -29,15 +29,13 @@ export async function POST(req: NextRequest) {
 
     const chatId = msg.chat?.id
     const photos = msg.photo
-
     if (!photos || photos.length === 0) return NextResponse.json({ ok: true })
 
     const caption = msg.caption || ''
-
     const match = caption.match(/#?(\d{5,9})\b/)
     if (!match) {
       if (chatId) await sendMsg(chatId,
-        '❌ CRM ID topilmadi.\n\nCaption da ID yozing:\n<code>#37691103</code>')
+        '❌ CRM ID topilmadi.\n\nCaption da ID yozing:\n<code>#38042635</code>')
       return NextResponse.json({ ok: true })
     }
 
@@ -51,8 +49,15 @@ export async function POST(req: NextRequest) {
     const crmId = match[1]
     const photo = photos[photos.length - 1]
 
+    // Avval javob yubor
+    if (chatId) {
+      await sendMsg(chatId,
+        `✅ CRM <b>#${crmId}</b> — rasm qabul qilindi!\n` +
+        `📌 Saqlash uchun: <code>node sync-tg-photos.mjs</code>`)
+    }
+
+    // Keyin cache ga yozishga harakat qil
     const cache = readCache()
-    const isNew = !cache[crmId]
     cache[crmId] = {
       file_id: photo.file_id,
       file_unique_id: photo.file_unique_id,
@@ -60,14 +65,7 @@ export async function POST(req: NextRequest) {
     }
     saveCache(cache)
 
-    const total = Object.keys(cache).length
-    if (chatId) {
-      await sendMsg(chatId,
-        `${isNew ? '✅' : '🔄'} CRM <b>#${crmId}</b> — rasm ${isNew ? 'saqlandi' : 'yangilandi'}\n` +
-        `📦 Jami: ${total} ta uy rasmi`)
-    }
-
-    console.log(`Photo saved: CRM #${crmId} (total: ${total})`)
+    console.log(`Photo received: CRM #${crmId}`)
   } catch (e) {
     console.error('tg-webhook error:', e)
   }
