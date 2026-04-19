@@ -100,7 +100,7 @@ const priceStr = (p: number) => !p ? '—' : p < 500_000 ? `$${p.toLocaleString(
 
 function applyFilters(h: House[], f: Filters, q: string): House[] {
   return h.filter(x => {
-    if (q) { const s = q.toLowerCase(); if (![x.title,x.district,x.landmark,x.jk].join(' ').toLowerCase().includes(s)) return false }
+    if (q) { const s = q.toLowerCase(); if (![String(x.id),x.title,x.district,x.landmark,x.jk].join(' ').toLowerCase().includes(s)) return false }
     if (f.district) { const s = f.district.toLowerCase(); if (![x.district,x.title,x.landmark,x.jk].join(' ').toLowerCase().includes(s)) return false }
     if (f.roomMin && x.rooms < +f.roomMin) return false
     if (f.roomMax && x.rooms > +f.roomMax) return false
