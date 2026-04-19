@@ -22,20 +22,29 @@ export async function POST(req: NextRequest) {
     if (!photos || photos.length === 0) return NextResponse.json({ ok: true })
 
     const caption = msg.caption || msg.text || ''
-    // Extract CRM ID: any 5-9 digit number in caption
-    const match = caption.match(/\b(\d{5,9})\b/)
+    // Extract CRM ID: #39397505 yoki 39397505 (# bilan yoki usiz)
+    const match = caption.match(/#?(\d{5,9})\b/)
     if (!match) {
-      console.log('No CRM ID found in caption:', caption.slice(0, 100))
+      console.log('No CRM ID in caption:', caption.slice(0, 80))
       return NextResponse.json({ ok: true })
     }
 
     const crmId = match[1]
-    const photo = photos[photos.length - 1] // largest size
+    const photo = photos[photos.length - 1] // eng katta rasm
+
+    // Admin tekshirish (ADMIN_IDS bo'sh bo'lsa hammaga ruxsat)
+    const adminIds = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean)
+    const senderId = String(msg.from?.id || '')
+    if (adminIds.length > 0 && !adminIds.includes(senderId)) {
+      console.log(`Blocked non-admin: ${senderId}`)
+      return NextResponse.json({ ok: true })
+    }
 
     const cache = readCache()
     cache[crmId] = {
       file_id: photo.file_id,
       file_unique_id: photo.file_unique_id,
+      date: new Date(msg.date * 1000).toISOString().split('T')[0],
     }
     saveCache(cache)
     console.log(`✅ Photo saved for CRM #${crmId}`)
