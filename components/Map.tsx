@@ -85,7 +85,7 @@ export default function Map() {
   const mapRef = useRef<HTMLDivElement>(null)
   const ymapsRef = useRef<any>(null)
   const mapObjRef = useRef<any>(null)
-  const ymapsReadyRef = useRef(false)
+  const [ymapsReady, setYmapsReady] = useState(false)
 
   const [houses, setHouses] = useState<House[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,7 +130,7 @@ export default function Map() {
     const init = () => {
       ; (window as any).ymaps.ready(() => {
         ymapsRef.current = (window as any).ymaps
-        ymapsReadyRef.current = true
+        setYmapsReady(true)
       })
     }
 
@@ -169,7 +169,7 @@ export default function Map() {
 
   // ── Xarita va pinlarni render ─────────────────
   useEffect(() => {
-    if (!mapRef.current || !ymapsRef.current || !ymapsReadyRef.current) return
+    if (!mapRef.current || !ymapsRef.current || !ymapsReady) return
 
     const ymaps = ymapsRef.current
 
@@ -232,7 +232,7 @@ export default function Map() {
         } catch { }
       }
     })
-  }, [filteredHouses])
+  }, [filteredHouses, ymapsReady])
 
   // Komponent unmount — xaritani tozalash
   useEffect(() => {
