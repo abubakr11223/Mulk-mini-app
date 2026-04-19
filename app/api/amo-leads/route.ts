@@ -15,20 +15,23 @@ try {
   const p = path.join(process.cwd(), 'public', 'coords_cache.json')
   fileCache = JSON.parse(fs.readFileSync(p, 'utf8'))
   console.log(`📦 coords_cache.json: ${Object.keys(fileCache).length} ta koordinata`)
-} catch {}
+} catch { }
 
 const PIPELINE_ID = 10775902
+const TOP_STATUS_ID = 85232970   // "ТОП ЛУЧШИЕ (APP)"
 
 const FIELD_IDS: Record<string, number> = {
-  yandex_url:   1461194,
-  rooms:        1460828,
-  area:         1460576,
-  floor:        1460716,
+  yandex_url: 1461194,
+  rooms: 1460828,
+  area: 1460576,
+  floor: 1460716,
   total_floors: 1460802,
-  district:     1461426,
-  description:  1286101,
-  landmark:     1573071,
-  jk:           1286105,
+  district: 1461426,
+  description: 1286101,
+  landmark: 1573071,
+  jk: 1286105,
+  // Skidka uchun eski narx maydoni — amoCRM'dan field_id ni aniqlang va qo'ying:
+  old_price: 0,   // ← TODO: to'g'ri field_id kiriting
 }
 
 // Qisqa URL → to'liq URL xotirasi (server hayoti davomida)
@@ -187,7 +190,7 @@ export async function GET(req: Request) {
   }
 
   const subdomain = (process.env.AMOCRM_SUBDOMAIN || '').replace(/"/g, '')
-  const token     = (process.env.AMOCRM_TOKEN     || '').replace(/"/g, '')
+  const token = (process.env.AMOCRM_TOKEN || '').replace(/"/g, '')
 
   if (!subdomain || !token) {
     return NextResponse.json({ error: "AMOCRM_SUBDOMAIN yoki AMOCRM_TOKEN .env da yo'q" }, { status: 500 })
@@ -234,22 +237,28 @@ export async function GET(req: Request) {
         if (!coords) { skipped++; continue }
 
         const rawPrice = lead.price ?? 0
+        const rawOldPrice = FIELD_IDS.old_price
+          ? parseFloat(getField(fields, FIELD_IDS.old_price)) || 0
+          : 0
+
         results.push({
-          id:          lead.id,
-          title:       lead.name || `Lid #${lead.id}`,
-          lat:         coords.lat,
-          lng:         coords.lng,
-          price:       rawPrice < 10_000 ? rawPrice * 1_000 : rawPrice,
-          rooms:       parseInt(getField(fields, FIELD_IDS.rooms))        || 0,
-          area:        parseFloat(getField(fields, FIELD_IDS.area))       || 0,
-          floor:       parseInt(getField(fields, FIELD_IDS.floor))        || 0,
+          id: lead.id,
+          title: lead.name || `Lid #${lead.id}`,
+          lat: coords.lat,
+          lng: coords.lng,
+          price: rawPrice < 10_000 ? rawPrice * 1_000 : rawPrice,
+          oldPrice: rawOldPrice < 10_000 && rawOldPrice > 0 ? rawOldPrice * 1_000 : rawOldPrice,
+          rooms: parseInt(getField(fields, FIELD_IDS.rooms)) || 0,
+          area: parseFloat(getField(fields, FIELD_IDS.area)) || 0,
+          floor: parseInt(getField(fields, FIELD_IDS.floor)) || 0,
           totalFloors: parseInt(getField(fields, FIELD_IDS.total_floors)) || 0,
-          district:    getField(fields, FIELD_IDS.district),
+          district: getField(fields, FIELD_IDS.district),
           description: getField(fields, FIELD_IDS.description),
-          landmark:    getField(fields, FIELD_IDS.landmark),
-          jk:          getField(fields, FIELD_IDS.jk),
-          yandex_url:  getField(fields, FIELD_IDS.yandex_url),
-          updatedAt:   lead.updated_at ?? 0,
+          landmark: getField(fields, FIELD_IDS.landmark),
+          jk: getField(fields, FIELD_IDS.jk),
+          yandex_url: getField(fields, FIELD_IDS.yandex_url),
+          updatedAt: lead.updated_at ?? 0,
+          isTop: lead.status_id === TOP_STATUS_ID,
         })
       } catch (e) {
         console.error(`Lid ${lead.id} xato:`, e)
@@ -262,9 +271,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json(results, {
       headers: {
-        'X-Cache':   'MISS',
-        'X-Total':   String(allLeads.length),
-        'X-Mapped':  String(results.length),
+        'X-Cache': 'MISS',
+        'X-Total': String(allLeads.length),
+        'X-Mapped': String(results.length),
         'X-Skipped': String(skipped),
       },
     })

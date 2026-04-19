@@ -9,6 +9,7 @@ export interface House {
   lat: number
   lng: number
   price: number
+  oldPrice: number    // Eskig narx (skidka uchun), 0 bo'lsa skidka yo'q
   rooms: number
   area: number
   floor: number
@@ -19,6 +20,7 @@ export interface House {
   jk: string
   yandex_url: string
   updatedAt: number   // Unix timestamp (amoCRM'dan)
+  isTop: boolean      // status_id === 85232970 ("ТОП ЛУЧШИЕ (APP)")
 }
 
 interface Cache {

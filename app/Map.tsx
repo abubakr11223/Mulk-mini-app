@@ -71,9 +71,10 @@ const DISTRICTS = [
 // ────────────────────────────────────────────────────────────
 interface House {
   id: number; title: string; lat: number; lng: number
-  price: number; rooms: number; area: number; floor: number
+  price: number; oldPrice: number; rooms: number; area: number; floor: number
   totalFloors: number; district: string; description: string
   landmark: string; jk: string; yandex_url: string; updatedAt: number
+  isTop: boolean
 }
 
 interface Filters {
@@ -95,12 +96,13 @@ const ZOOM_LABEL = 15
 // ────────────────────────────────────────────────────────────
 // HELPERS
 // ────────────────────────────────────────────────────────────
-const priceLbl = (p: number) => !p ? '?' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p/1e6).toFixed(0)}M`
-const priceStr = (p: number) => !p ? '—' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p/1e6).toFixed(1)} mln so'm`
+const priceLbl  = (p: number) => !p ? '?' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p/1e6).toFixed(0)}M`
+const priceStr  = (p: number) => !p ? '—' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p/1e6).toFixed(1)} mln so'm`
+const discount  = (old: number, cur: number) => old > cur && old > 0 ? Math.round((old - cur) / old * 100) : 0
 
 function applyFilters(h: House[], f: Filters, q: string): House[] {
   return h.filter(x => {
-    if (q) { const s = q.toLowerCase(); if (![String(x.id),x.title,x.district,x.landmark,x.jk].join(' ').toLowerCase().includes(s)) return false }
+    if (q) { const s = q.toLowerCase(); if (![x.title,x.district,x.landmark,x.jk,String(x.id)].join(' ').toLowerCase().includes(s)) return false }
     if (f.district) { const s = f.district.toLowerCase(); if (![x.district,x.title,x.landmark,x.jk].join(' ').toLowerCase().includes(s)) return false }
     if (f.roomMin && x.rooms < +f.roomMin) return false
     if (f.roomMax && x.rooms > +f.roomMax) return false
@@ -169,6 +171,7 @@ export default function MapPage() {
 
   const t = T[lang]
   const filtered = applyFilters(houses, filters, search)
+    .sort((a, b) => (b.isTop ? 1 : 0) - (a.isTop ? 1 : 0))
   const fCount = Object.entries(filters).filter(([k,v]) => k==='type'?v!=='all':v!=='').length
 
   useEffect(() => {
@@ -259,7 +262,6 @@ export default function MapPage() {
           }
         })
       }
-
       renderMarkers(mapObjRef.current.getZoom())
     })
   }, [filtered, ymapsReady, renderMarkers])
@@ -408,7 +410,9 @@ export default function MapPage() {
   )
 }
 
-
+// ────────────────────────────────────────────────────────────
+// MAP CARD (bottom sheet ON map, no dark overlay)
+// ────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────
 // PHOTO CAROUSEL
 // ────────────────────────────────────────────────────────────
@@ -465,9 +469,6 @@ function PhotoCarousel({ crmId }: { crmId: number }) {
   )
 }
 
-
-
-
 function MapCard({house:h,t,onClose,onShare,onCall}:{
   house:House; t:typeof T['uz']; onClose:()=>void; onShare:()=>void; onCall:()=>void
 }) {
@@ -495,7 +496,6 @@ function MapCard({house:h,t,onClose,onShare,onCall}:{
       sheetRef.current.style.transform  = 'translateY(0)'
     }
   }
-
 
   return (
     <>
@@ -528,10 +528,24 @@ function MapCard({house:h,t,onClose,onShare,onCall}:{
 
           {/* Photo Carousel */}
           <PhotoCarousel crmId={h.id} />
-          {h.jk&&<span className="inline-block bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold mb-2">{h.jk}</span>}
+
+          {/* Badges */}
+          <div className="flex gap-2 mb-2 flex-wrap">
+            {h.isTop&&<span className="bg-yellow-500 text-black text-[10px] px-2 py-0.5 rounded-full font-bold">⭐ TOP</span>}
+            {h.jk&&<span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">{h.jk}</span>}
+          </div>
 
           {/* Price + title */}
           <div className="mb-3">
+            {/* Discount: old price strikethrough in red */}
+            {h.oldPrice>0&&h.oldPrice>h.price&&(
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-sm text-red-400 line-through">{priceStr(h.oldPrice)}</p>
+                <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+                  −{discount(h.oldPrice,h.price)}%
+                </span>
+              </div>
+            )}
             <p className="text-xl font-bold text-blue-400">{priceStr(h.price)}</p>
             <p className="text-sm font-medium leading-snug mt-0.5">{h.title}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">CRM #{h.id}</p>
@@ -578,9 +592,14 @@ function MapCard({house:h,t,onClose,onShare,onCall}:{
 // ────────────────────────────────────────────────────────────
 function GCard({h,t,onClick}:{h:House;t:typeof T['uz'];onClick:()=>void}) {
   const [photoErr,setPhotoErr]=useState(false)
+  const disc = discount(h.oldPrice, h.price)
   return (
     <button onClick={onClick}
-      className="w-full text-left bg-slate-800 rounded-2xl overflow-hidden border border-white/5 active:scale-[0.985] transition-transform">
+      className={`w-full text-left rounded-2xl overflow-hidden active:scale-[0.985] transition-transform ${
+        h.isTop
+          ? 'bg-gradient-to-br from-yellow-900/40 to-slate-800 border border-yellow-500/40'
+          : 'bg-slate-800 border border-white/5'
+      }`}>
       <div className="h-44 bg-gradient-to-br from-slate-700 to-slate-600 relative overflow-hidden">
         {!photoErr?(
           // eslint-disable-next-line @next/next/no-img-element
@@ -594,11 +613,20 @@ function GCard({h,t,onClick}:{h:House;t:typeof T['uz'];onClick:()=>void}) {
             </svg>
           </div>
         )}
-        {h.jk&&<span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">{t.newTag}</span>}
+        {/* TOP badge */}
+        {h.isTop&&<span className="absolute top-2.5 left-2.5 bg-yellow-500 text-black text-[10px] px-2 py-0.5 rounded-full font-bold">⭐ TOP</span>}
+        {/* JK badge (only if not top) */}
+        {!h.isTop&&h.jk&&<span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">{t.newTag}</span>}
+        {/* Discount badge */}
+        {disc>0&&<span className="absolute top-2.5 right-2.5 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">−{disc}%</span>}
         {h.price>0&&<span className="absolute bottom-2.5 right-2.5 bg-black/65 text-white text-sm font-bold px-2.5 py-1 rounded-xl">{priceLbl(h.price)}</span>}
       </div>
       <div className="p-3.5">
-        <p className="font-semibold text-sm leading-snug mb-1.5 line-clamp-2">{h.title}</p>
+        <p className="font-semibold text-sm leading-snug mb-1 line-clamp-2">{h.title}</p>
+        {/* Price with discount */}
+        {disc>0&&h.oldPrice>0&&(
+          <p className="text-xs text-red-400 line-through mb-0.5">{priceStr(h.oldPrice)}</p>
+        )}
         {(h.district||h.landmark)&&<p className="text-xs text-slate-400 mb-2 truncate">📍 {h.district||h.landmark}</p>}
         <div className="flex gap-3 text-xs text-slate-300 flex-wrap">
           {h.rooms>0&&<span>🛏 {t.rooms_n(h.rooms)}</span>}
