@@ -1,95 +1,123 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // app/api/amo-leads/route.ts
-// amoCRM'dan lidlarni olib, koordinatalarini to'g'ri ajratib qaytaradi
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from 'next/server'
 import https from 'https'
+import http from 'http'
 import { clearCache, getCache, House, isFresh, setCache } from '@/lib/amo-cache'
 
-// ── Pipeline va custom field ID'lari ──────────────────────────────────────────
 const PIPELINE_ID = 10775902
 
 const FIELD_IDS: Record<string, number> = {
-  yandex_url: 1461194,
-  rooms: 1460828,
-  area: 1460576,
-  floor: 1460716,
+  yandex_url:   1461194,
+  rooms:        1460828,
+  area:         1460576,
+  floor:        1460716,
   total_floors: 1460802,
-  district: 1461426,
-  description: 1286101,
-  landmark: 1573071,
-  jk: 1286105,
+  district:     1461426,
+  description:  1286101,
+  landmark:     1573071,
+  jk:           1286105,
 }
 
-// ── Yordamchi: custom field qiymati ──────────────────────────────────────────
+// Qisqa URL → to'liq URL xotirasi (server hayoti davomida)
+const resolvedUrlCache: Record<string, string> = {}
+
+// ── Yordamchi ────────────────────────────────────────────────────────────────
 function getField(fields: any[], id: number): string {
   const f = fields.find((f: any) => f.field_id === id)
   return f?.values?.[0]?.value ?? ''
 }
 
-// ── ASOSIY TUZATMA: Koordinatalarni URL'dan ajratish ─────────────────────────
-//
-//  Yandex Maps URL'da  ll=  parametri  LONGITUDE, LATITUDE  tartibida keladi!
-//  (birinchi uzunlik, keyin kenglik — odatiy lat,lng tartibidan TESKARI)
-//
-//  Misol: https://yandex.ru/maps/?ll=69.2401%2C41.2995&z=17
-//                                     ^^^^^^^^ ^^^^^^^^
-//                                     lng=69   lat=41   ← to'g'ri tartib
-//
+function isUzbekistan(lat: number, lng: number): boolean {
+  return lat >= 37.0 && lat <= 45.6 && lng >= 55.9 && lng <= 73.2
+}
+
+// ── Koordinata ajratish ───────────────────────────────────────────────────────
 function extractCoords(url: string): { lat: number; lng: number } | null {
   if (!url) return null
 
-  // 1) Yandex: ll=longitude,latitude  (yoki %2C — URL-encoded vergul)
-  const llMatch = url.match(/[?&]ll=([0-9.]+)[,%2C]+([0-9.]+)/)
-  if (llMatch) {
-    const lng = +llMatch[1]   // birinchi = longitude ✓
-    const lat = +llMatch[2]   // ikkinchi = latitude  ✓
-    if (isUzbekistan(lat, lng)) return { lat, lng }
-    // Ba'zan foydalanuvchilar teskari nusxalaydi — tekshirib ko'ramiz
-    if (isUzbekistan(lng, lat)) return { lat: lng, lng: lat }
-  }
-
-  // 2) Yandex: pt=longitude,latitude  (pin/marker parametri)
-  const ptMatch = url.match(/[?&]pt=([0-9.]+)[,%2C]+([0-9.]+)/)
-  if (ptMatch) {
-    const lng = +ptMatch[1]
-    const lat = +ptMatch[2]
-    if (isUzbekistan(lat, lng)) return { lat, lng }
-    if (isUzbekistan(lng, lat)) return { lat: lng, lng: lat }
-  }
-
-  // 3) Yandex: rtext= (yo'nalish rejimlari) — birinchi nuqta
-  const rtextMatch = url.match(/rtext=([0-9.]+)[,%2C]+([0-9.]+)/)
-  if (rtextMatch) {
-    const a = +rtextMatch[1], b = +rtextMatch[2]
+  // Google Maps: q=lat,lng  yoki  ll=lat,lng
+  const qMatch = url.match(/[?&]q=([0-9.-]+),([0-9.-]+)/)
+  if (qMatch) {
+    const a = +qMatch[1], b = +qMatch[2]
     if (isUzbekistan(a, b)) return { lat: a, lng: b }
     if (isUzbekistan(b, a)) return { lat: b, lng: a }
   }
 
-  // 4) Google Maps: @latitude,longitude
+  // Google Maps: @lat,lng
   const atMatch = url.match(/@([0-9.-]+),([0-9.-]+)/)
   if (atMatch) {
-    const lat = +atMatch[1], lng = +atMatch[2]
-    if (isUzbekistan(lat, lng)) return { lat, lng }
+    const a = +atMatch[1], b = +atMatch[2]
+    if (isUzbekistan(a, b)) return { lat: a, lng: b }
   }
 
-  // 5) Google Maps: q=latitude,longitude
-  const qMatch = url.match(/[?&]q=([0-9.-]+),([0-9.-]+)/)
-  if (qMatch) {
-    const lat = +qMatch[1], lng = +qMatch[2]
-    if (isUzbekistan(lat, lng)) return { lat, lng }
+  // Yandex: ll=lng,lat (Yandex da birinchi longitude!)
+  const llMatch = url.match(/[?&]ll=([0-9.]+)[,%2C]+([0-9.]+)/)
+  if (llMatch) {
+    const a = +llMatch[1], b = +llMatch[2]
+    // Yandex: ll=lng,lat
+    if (isUzbekistan(b, a)) return { lat: b, lng: a }
+    // Ba'zan teskari
+    if (isUzbekistan(a, b)) return { lat: a, lng: b }
+  }
+
+  // Yandex: pt=lng,lat
+  const ptMatch = url.match(/[?&]pt=([0-9.]+)[,%2C]+([0-9.]+)/)
+  if (ptMatch) {
+    const a = +ptMatch[1], b = +ptMatch[2]
+    if (isUzbekistan(b, a)) return { lat: b, lng: a }
+    if (isUzbekistan(a, b)) return { lat: a, lng: b }
   }
 
   return null
 }
 
-// O'zbekiston geografik chegaralari
-function isUzbekistan(lat: number, lng: number): boolean {
-  return lat >= 37.0 && lat <= 45.6 && lng >= 55.9 && lng <= 73.2
+// ── Yandex qisqa URL ni redirect orqali hal qilish ───────────────────────────
+function resolveRedirect(url: string): Promise<string> {
+  if (resolvedUrlCache[url]) return Promise.resolve(resolvedUrlCache[url])
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(url), 4000) // 4 soniya limit
+
+    const lib = url.startsWith('https') ? https : http
+    const req = lib.get(
+      url,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)',
+          'Accept-Language': 'ru,uz',
+        },
+      },
+      (res) => {
+        clearTimeout(timeout)
+        const location = res.headers.location as string | undefined
+        res.resume()
+
+        if (location && res.statusCode && res.statusCode >= 300 && res.statusCode < 400) {
+          // Relative URL ni absolute ga o'tkazish
+          const resolved = location.startsWith('http') ? location : new URL(location, url).href
+          resolvedUrlCache[url] = resolved
+          resolve(resolved)
+        } else {
+          resolvedUrlCache[url] = url
+          resolve(url)
+        }
+      },
+    )
+
+    req.on('error', () => { clearTimeout(timeout); resolve(url) })
+    req.setTimeout(4000, () => { req.destroy(); resolve(url) })
+  })
 }
 
-// ── HTTPS so'rovi (https moduli) ──────────────────────────────────────────────
+// Yandex qisqa URL ekanligini tekshirish
+function isYandexShortUrl(url: string): boolean {
+  return /yandex\.[a-z]+\/maps\/-\/[A-Za-z0-9_-]+/.test(url)
+}
+
+// ── HTTPS so'rovi ─────────────────────────────────────────────────────────────
 function httpsGet(host: string, path: string, token: string): Promise<string> {
   return new Promise((resolve, reject) => {
     https
@@ -102,68 +130,39 @@ function httpsGet(host: string, path: string, token: string): Promise<string> {
   })
 }
 
-// ── amoCRM'dan barcha lidlarni olish ─────────────────────────────────────────
+// ── amoCRM barcha lidlar ──────────────────────────────────────────────────────
 async function fetchAllLeads(subdomain: string, token: string): Promise<any[]> {
   const all: any[] = []
   let page = 1
-
-  while (page <= 20) {  // Xavfsizlik chegarasi: 250×20 = 5000 lid
+  while (page <= 20) {
     const path =
       `/api/v4/leads?limit=250&page=${page}` +
       `&filter%5Bpipeline_id%5D=${PIPELINE_ID}` +
       `&with=custom_fields_values`
-
     const text = await httpsGet(subdomain + '.amocrm.ru', path, token)
-
     let data: any
     try { data = JSON.parse(text) } catch { break }
-
     const leads: any[] = data?._embedded?.leads ?? []
     if (leads.length === 0) break
-
     all.push(...leads)
     page++
   }
-
   return all
 }
 
-// ── Lid → House (xato bo'lsa null qaytaradi) ─────────────────────────────────
-function mapLead(lead: any): House | null {
-  try {
-    const fields = lead.custom_fields_values || []
-    const url = getField(fields, FIELD_IDS.yandex_url)
-    const coords = extractCoords(url)
-
-    if (!coords) return null  // Koordinata yo'q — xaritaga qo'shib bo'lmaydi
-
-    const rawPrice = lead.price ?? 0
-    return {
-      id: lead.id,
-      title: lead.name || `Lid #${lead.id}`,
-      lat: coords.lat,
-      lng: coords.lng,
-      price: rawPrice < 10_000 ? rawPrice * 1_000 : rawPrice,
-      rooms: parseInt(getField(fields, FIELD_IDS.rooms)) || 0,
-      area: parseFloat(getField(fields, FIELD_IDS.area)) || 0,
-      floor: parseInt(getField(fields, FIELD_IDS.floor)) || 0,
-      totalFloors: parseInt(getField(fields, FIELD_IDS.total_floors)) || 0,
-      district: getField(fields, FIELD_IDS.district),
-      description: getField(fields, FIELD_IDS.description),
-      landmark: getField(fields, FIELD_IDS.landmark),
-      jk: getField(fields, FIELD_IDS.jk),
-      yandex_url: url,
-      updatedAt: lead.updated_at ?? 0,
-    }
-  } catch (e) {
-    console.error(`⚠️  Lid ${lead.id} parse xatosi:`, e)
-    return null
+// ── Parallel batch URL resolve ────────────────────────────────────────────────
+async function resolveUrlsBatch(urls: string[], batchSize = 15): Promise<Record<string, string>> {
+  const result: Record<string, string> = {}
+  for (let i = 0; i < urls.length; i += batchSize) {
+    const batch = urls.slice(i, i + batchSize)
+    const resolved = await Promise.all(batch.map(u => resolveRedirect(u)))
+    batch.forEach((u, idx) => { result[u] = resolved[idx] })
   }
+  return result
 }
 
 // ── GET /api/amo-leads ────────────────────────────────────────────────────────
 export async function GET(req: Request) {
-  // ?force=1 → cache'ni majburiy yangilash
   const forceRefresh = new URL(req.url).searchParams.get('force') === '1'
 
   if (!forceRefresh && isFresh()) {
@@ -171,66 +170,99 @@ export async function GET(req: Request) {
     return NextResponse.json(cached.data, {
       headers: {
         'X-Cache': 'HIT',
-        'X-Cache-Age': String(Math.floor((Date.now() - cached.ts) / 1000)) + 's',
+        'X-Count': String(cached.data.length),
         'Cache-Control': 'public, max-age=300',
       },
     })
   }
 
   const subdomain = (process.env.AMOCRM_SUBDOMAIN || '').replace(/"/g, '')
-  const token = (process.env.AMOCRM_TOKEN || '').replace(/"/g, '')
+  const token     = (process.env.AMOCRM_TOKEN     || '').replace(/"/g, '')
 
   if (!subdomain || !token) {
-    return NextResponse.json(
-      { error: 'AMOCRM_SUBDOMAIN yoki AMOCRM_TOKEN .env da yo\'q' },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "AMOCRM_SUBDOMAIN yoki AMOCRM_TOKEN .env da yo'q" }, { status: 500 })
   }
 
   try {
     const allLeads = await fetchAllLeads(subdomain, token)
 
+    // 1. Barcha Yandex qisqa URLlarni topish
+    const shortUrls: string[] = []
+    for (const lead of allLeads) {
+      const fields = lead.custom_fields_values || []
+      const url = getField(fields, FIELD_IDS.yandex_url)
+      if (url && isYandexShortUrl(url) && !resolvedUrlCache[url]) {
+        shortUrls.push(url)
+      }
+    }
+
+    // 2. Redirect orqali to'liq URL olish (parallel, batch 15 ta)
+    if (shortUrls.length > 0) {
+      console.log(`🔗 ${shortUrls.length} ta Yandex qisqa URL hal qilinmoqda...`)
+      await resolveUrlsBatch([...new Set(shortUrls)], 15)
+      console.log(`✅ URL resolve tugadi`)
+    }
+
+    // 3. Lidlarni House ga o'tkazish
     const results: House[] = []
     let skipped = 0
 
     for (const lead of allLeads) {
-      const house = mapLead(lead)
-      if (house) results.push(house)
-      else skipped++
+      try {
+        const fields = lead.custom_fields_values || []
+        let url = getField(fields, FIELD_IDS.yandex_url)
+
+        // Qisqa URL bo'lsa — resolve qilingan versiyasini olamiz
+        if (url && isYandexShortUrl(url) && resolvedUrlCache[url]) {
+          url = resolvedUrlCache[url]
+        }
+
+        const coords = extractCoords(url)
+        if (!coords) { skipped++; continue }
+
+        const rawPrice = lead.price ?? 0
+        results.push({
+          id:          lead.id,
+          title:       lead.name || `Lid #${lead.id}`,
+          lat:         coords.lat,
+          lng:         coords.lng,
+          price:       rawPrice < 10_000 ? rawPrice * 1_000 : rawPrice,
+          rooms:       parseInt(getField(fields, FIELD_IDS.rooms))        || 0,
+          area:        parseFloat(getField(fields, FIELD_IDS.area))       || 0,
+          floor:       parseInt(getField(fields, FIELD_IDS.floor))        || 0,
+          totalFloors: parseInt(getField(fields, FIELD_IDS.total_floors)) || 0,
+          district:    getField(fields, FIELD_IDS.district),
+          description: getField(fields, FIELD_IDS.description),
+          landmark:    getField(fields, FIELD_IDS.landmark),
+          jk:          getField(fields, FIELD_IDS.jk),
+          yandex_url:  getField(fields, FIELD_IDS.yandex_url),
+          updatedAt:   lead.updated_at ?? 0,
+        })
+      } catch (e) {
+        console.error(`Lid ${lead.id} xato:`, e)
+        skipped++
+      }
     }
 
     setCache(results)
-
-    console.log(
-      `✅ amoCRM: ${allLeads.length} lid, ${results.length} xaritaga, ${skipped} o'tkazib yuborildi`,
-    )
+    console.log(`📍 ${results.length}/${allLeads.length} xaritaga tushdi, ${skipped} o'tkazib yuborildi`)
 
     return NextResponse.json(results, {
       headers: {
-        'X-Cache': 'MISS',
-        'X-Total-Leads': String(allLeads.length),
-        'X-Mapped': String(results.length),
+        'X-Cache':   'MISS',
+        'X-Total':   String(allLeads.length),
+        'X-Mapped':  String(results.length),
         'X-Skipped': String(skipped),
-        'Cache-Control': 'public, max-age=300',
       },
     })
   } catch (e: any) {
-    console.error('amoCRM API xato:', e)
-
-    // Eski cache bor bo'lsa — xato bo'lsa ham uni qaytaramiz
     const stale = getCache()
-    if (stale) {
-      return NextResponse.json(stale.data, {
-        headers: { 'X-Cache': 'STALE', 'X-Error': e.message },
-      })
-    }
-
+    if (stale) return NextResponse.json(stale.data, { headers: { 'X-Cache': 'STALE' } })
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
 
-// ── DELETE /api/amo-leads → cache'ni tozalash ────────────────────────────────
 export async function DELETE() {
   clearCache()
-  return NextResponse.json({ ok: true, message: 'Cache tozalandi' })
+  return NextResponse.json({ ok: true })
 }
