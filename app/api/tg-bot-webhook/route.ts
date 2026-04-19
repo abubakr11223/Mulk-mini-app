@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const match = caption.match(/#?(\d{5,9})\b/)
     if (match) {
       crmId = match[1]
-      if (mgId) setMgCrmId(mgId, crmId) // keyingi rasmlar uchun saqlash
+      if (mgId && crmId) setMgCrmId(mgId, crmId) // keyingi rasmlar uchun saqlash
     } else if (mgId) {
       crmId = getMgCrmId(mgId) // birinchi rasmdagi CRM ID ni olish
     }
