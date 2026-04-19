@@ -34,8 +34,10 @@ export async function POST(req: NextRequest) {
     const caption = msg.caption || ''
     const match = caption.match(/#?(\d{5,9})\b/)
     if (!match) {
-      if (chatId) await sendMsg(chatId,
-        '❌ CRM ID topilmadi.\n\nCaption da ID yozing:\n<code>#38042635</code>')
+      if (!msg.media_group_id) {
+        if (chatId) await sendMsg(chatId,
+          '❌ CRM ID topilmadi.\n\nCaption da ID yozing:\n<code>#38042635</code>')
+      }
       return NextResponse.json({ ok: true })
     }
 
@@ -48,24 +50,35 @@ export async function POST(req: NextRequest) {
 
     const crmId = match[1]
     const photo = photos[photos.length - 1]
-
-    // Avval javob yubor
-    if (chatId) {
-      await sendMsg(chatId,
-        `✅ CRM <b>#${crmId}</b> — rasm qabul qilindi!\n` +
-        `📌 Saqlash uchun: <code>node sync-tg-photos.mjs</code>`)
-    }
-
-    // Keyin cache ga yozishga harakat qil
     const cache = readCache()
-    cache[crmId] = {
-      file_id: photo.file_id,
-      file_unique_id: photo.file_unique_id,
-      date: new Date(msg.date * 1000).toISOString().split('T')[0],
+    const entry = cache[crmId]
+
+    let photosList: any[] = []
+    if (Array.isArray(entry?.photos)) {
+      photosList = entry.photos
+    } else if (entry?.file_id) {
+      photosList = [{ file_id: entry.file_id, file_unique_id: entry.file_unique_id, date: entry.date }]
     }
+
+    const alreadyExists = photosList.some(p => p.file_unique_id === photo.file_unique_id)
+    const isNew = !cache[crmId]
+
+    if (!alreadyExists) {
+      photosList.push({
+        file_id: photo.file_id,
+        file_unique_id: photo.file_unique_id,
+        date: new Date(msg.date * 1000).toISOString().split('T')[0],
+      })
+    }
+
+    cache[crmId] = { photos: photosList }
     saveCache(cache)
 
-    console.log(`Photo received: CRM #${crmId}`)
+    if (chatId) {
+      await sendMsg(chatId,
+        `${isNew ? '✅' : '➕'} CRM <b>#${crmId}</b>\n` +
+        `📸 Jami: ${photosList.length} ta rasm`)
+    }
   } catch (e) {
     console.error('tg-webhook error:', e)
   }
@@ -74,8 +87,5 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   const cache = readCache()
-  return NextResponse.json({
-    status: 'Telegram photo webhook active',
-    photos_count: Object.keys(cache).length
-  })
+  return NextResponse.json({ status: 'ok', properties: Object.keys(cache).length })
 }

@@ -251,7 +251,7 @@ export default function MapPage() {
     ymaps.ready(() => {
       if (!mapObjRef.current) {
         mapObjRef.current = new ymaps.Map(mapRef.current, {
-          center: [41.2995, 69.2401], zoom: 13, controls: ['zoomControl'],
+          center: [41.2995, 69.2401], zoom: 11, controls: ['zoomControl'],
         })
         mapObjRef.current.events.add('boundschange', (e: any) => {
           if (e.get('newZoom') !== e.get('oldZoom')) {
@@ -261,13 +261,6 @@ export default function MapPage() {
       }
 
       renderMarkers(mapObjRef.current.getZoom())
-
-      if (!boundsSet.current && filtered.length > 0) {
-        try {
-          const b = mapObjRef.current.geoObjects.getBounds()
-          if (b) { mapObjRef.current.setBounds(b, { checkZoomRange: true, zoomMargin: 80 }); boundsSet.current = true }
-        } catch {}
-      }
     })
   }, [filtered, ymapsReady, renderMarkers])
 
@@ -415,16 +408,72 @@ export default function MapPage() {
   )
 }
 
+
 // ────────────────────────────────────────────────────────────
-// MAP CARD (bottom sheet ON map, no dark overlay)
+// PHOTO CAROUSEL
 // ────────────────────────────────────────────────────────────
+function PhotoCarousel({ crmId }: { crmId: number }) {
+  const [count, setCount] = useState(1)
+  const [current, setCurrent] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch(`/api/photo/${crmId}?count=1`)
+      .then(r => r.json())
+      .then(d => { if (d.count > 0) setCount(d.count) })
+      .catch(() => {})
+  }, [crmId])
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return
+    const idx = Math.round(scrollRef.current.scrollLeft / scrollRef.current.offsetWidth)
+    setCurrent(Math.max(0, Math.min(idx, count - 1)))
+  }
+
+  return (
+    <div className="relative bg-slate-800 rounded-2xl overflow-hidden mb-3" style={{height:'220px'}}>
+      <div ref={scrollRef} onScroll={handleScroll}
+        className="flex h-full"
+        style={{overflowX:'scroll',scrollSnapType:'x mandatory',scrollbarWidth:'none'}}>
+        {Array.from({length: count}, (_, i) => (
+          <div key={i} style={{minWidth:'100%',scrollSnapAlign:'start',background:'#1e293b'}}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/photo/${crmId}?index=${i}`} alt=""
+              className="w-full h-full"
+              style={{objectFit:'contain'}}
+              onError={e => { (e.target as HTMLImageElement).style.display='none' }}/>
+          </div>
+        ))}
+      </div>
+      {count > 1 && (
+        <>
+          <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+            {current+1}/{count}
+          </div>
+          <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5">
+            {Array.from({length: count}, (_, i) => (
+              <div key={i} style={{
+                width: i===current ? 16 : 6, height:6,
+                borderRadius: 3, background: i===current ? 'white' : 'rgba(255,255,255,0.4)',
+                transition:'all 0.2s'
+              }}/>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+
+
+
 function MapCard({house:h,t,onClose,onShare,onCall}:{
   house:House; t:typeof T['uz']; onClose:()=>void; onShare:()=>void; onCall:()=>void
 }) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const startY   = useRef(0)
   const dragging = useRef(false)
-  const [photoErr, setPhotoErr] = useState(false)
 
   const onTS = (e: React.TouchEvent) => {
     startY.current = e.touches[0].clientY
@@ -447,7 +496,6 @@ function MapCard({house:h,t,onClose,onShare,onCall}:{
     }
   }
 
-  const photoUrl = `/api/photo/${h.id}`
 
   return (
     <>
@@ -478,23 +526,9 @@ function MapCard({house:h,t,onClose,onShare,onCall}:{
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 pb-2">
 
-          {/* Photo */}
-          <div className="h-36 bg-gradient-to-br from-slate-700 to-slate-600 rounded-2xl mb-3 overflow-hidden relative">
-            {!photoErr ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoUrl} alt={h.title}
-                className="w-full h-full object-cover"
-                onError={()=>setPhotoErr(true)}/>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.2">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                  <polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
-              </div>
-            )}
-            {h.jk&&<span className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">{h.jk}</span>}
-          </div>
+          {/* Photo Carousel */}
+          <PhotoCarousel crmId={h.id} />
+          {h.jk&&<span className="inline-block bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold mb-2">{h.jk}</span>}
 
           {/* Price + title */}
           <div className="mb-3">
