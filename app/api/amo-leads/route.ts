@@ -5,7 +5,17 @@
 import { NextResponse } from 'next/server'
 import https from 'https'
 import http from 'http'
+import fs from 'fs'
+import path from 'path'
 import { clearCache, getCache, House, isFresh, setCache } from '@/lib/amo-cache'
+
+// coords_cache.json dan koordinatalar (deploy vaqtida o'qiladi)
+let fileCache: Record<string, { lat: number; lng: number }> = {}
+try {
+  const p = path.join(process.cwd(), 'public', 'coords_cache.json')
+  fileCache = JSON.parse(fs.readFileSync(p, 'utf8'))
+  console.log(`📦 coords_cache.json: ${Object.keys(fileCache).length} ta koordinata`)
+} catch {}
 
 const PIPELINE_ID = 10775902
 
@@ -217,7 +227,10 @@ export async function GET(req: Request) {
           url = resolvedUrlCache[url]
         }
 
-        const coords = extractCoords(url)
+        // Koordinata olish: 1) URL dan, 2) xotira cachidan, 3) fayl cachidan
+        let coords = extractCoords(url)
+        if (!coords) coords = resolvedUrlCache[url] ? extractCoords(resolvedUrlCache[url]) : null
+        if (!coords) coords = fileCache[String(lead.id)] ?? null
         if (!coords) { skipped++; continue }
 
         const rawPrice = lead.price ?? 0
