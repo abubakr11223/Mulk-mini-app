@@ -125,6 +125,11 @@ export default function Map() {
 
   // ── Yandex Maps SDK yuklash ───────────────────
   useEffect(() => {
+    // Telegram Mini App expand
+    if (typeof window !== 'undefined') {
+      const tg = (window as any)?.Telegram?.WebApp
+      if (tg) { tg.expand(); tg.disableVerticalSwipes?.() }
+    }
     if (typeof window === 'undefined') return
 
     const init = () => {
@@ -265,7 +270,7 @@ export default function Map() {
   )
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col" style={{ height: "100dvh" }}>
 
       {/* ── FILTER PANELI ── */}
       <div className="flex flex-wrap gap-2 p-3 bg-white border-b shadow-sm">
@@ -346,7 +351,7 @@ export default function Map() {
 
       {/* ── XARITA ── */}
       <div className="flex flex-1 relative">
-        <div ref={mapRef} className="flex-1" />
+        <div ref={mapRef} className="flex-1" style={{ minHeight: 0, height: "100%" }} />
 
         {/* Tanlangan ob'ekt — info panel */}
         {selected && (
