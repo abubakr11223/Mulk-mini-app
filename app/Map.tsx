@@ -168,6 +168,7 @@ export default function MapPage() {
   const [search,  setSearch]  = useState('')
   const [tab,     setTab]     = useState<Tab>('gallery')
   const [lang,    setLang]    = useState<Lang>('uz')
+  const [lightbox,setLightbox]= useState<{crmId:number;count:number;idx:number}|null>(null)
 
   const t = T[lang]
   const filtered = applyFilters(houses, filters, search)
@@ -314,6 +315,14 @@ export default function MapPage() {
   return (
     <div className="flex flex-col bg-slate-900 text-white" style={{height:'100dvh',overflow:'hidden'}}>
 
+      {/* LIGHTBOX — MapPage darajasida (transform muammosiz) */}
+      {lightbox && (
+        <Lightbox
+          crmId={lightbox.crmId} count={lightbox.count} initial={lightbox.idx}
+          onClose={() => setLightbox(null)}
+        />
+      )}
+
       {/* HEADER */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8 flex-shrink-0">
         <div>
@@ -367,6 +376,7 @@ export default function MapPage() {
               onClose={()=>setSelected(null)}
               onShare={()=>shareHouse(selected)}
               onCall={callSeller}
+              onOpenLightbox={(crmId,count,idx)=>setLightbox({crmId,count,idx})}
             />
           )}
         </div>
@@ -496,10 +506,9 @@ function Lightbox({ crmId, count, initial, onClose }: {
 // ────────────────────────────────────────────────────────────
 // PHOTO CAROUSEL
 // ────────────────────────────────────────────────────────────
-function PhotoCarousel({ crmId }: { crmId: number }) {
+function PhotoCarousel({ crmId, onOpen }: { crmId: number; onOpen:(count:number,idx:number)=>void }) {
   const [count, setCount] = useState(1)
   const [current, setCurrent] = useState(0)
-  const [lightbox, setLightbox] = useState<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -516,17 +525,13 @@ function PhotoCarousel({ crmId }: { crmId: number }) {
   }
 
   return (
-    <>
-    {lightbox !== null && (
-      <Lightbox crmId={crmId} count={count} initial={lightbox} onClose={() => setLightbox(null)}/>
-    )}
     <div className="relative bg-slate-800 rounded-2xl overflow-hidden mb-3" style={{height:'220px'}}>
       <div ref={scrollRef} onScroll={handleScroll}
         className="flex h-full"
         style={{overflowX:'scroll',scrollSnapType:'x mandatory',scrollbarWidth:'none'}}>
         {Array.from({length: count}, (_, i) => (
           <div key={i} style={{minWidth:'100%',scrollSnapAlign:'start',background:'#1e293b'}}
-            onClick={() => setLightbox(i)}>
+            onClick={() => onOpen(count, i)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`/api/photo/${crmId}?index=${i}`} alt=""
               className="w-full h-full"
@@ -552,12 +557,12 @@ function PhotoCarousel({ crmId }: { crmId: number }) {
         </>
       )}
     </div>
-    </>
   )
 }
 
-function MapCard({house:h,t,onClose,onShare,onCall}:{
+function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
   house:House; t:typeof T['uz']; onClose:()=>void; onShare:()=>void; onCall:()=>void
+  onOpenLightbox:(crmId:number,count:number,idx:number)=>void
 }) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const startY   = useRef(0)
@@ -614,7 +619,7 @@ function MapCard({house:h,t,onClose,onShare,onCall}:{
         <div className="flex-1 overflow-y-auto px-4 pb-2">
 
           {/* Photo Carousel */}
-          <PhotoCarousel crmId={h.id} />
+          <PhotoCarousel crmId={h.id} onOpen={(count,idx)=>onOpenLightbox(h.id,count,idx)}/>
 
           {/* Badges */}
           <div className="flex gap-2 mb-2 flex-wrap">

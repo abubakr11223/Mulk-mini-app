@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export const maxDuration = 10 // Vercel Hobby plan max (sekund)
+export const maxDuration = 10
 
 // ── Vercel KV (Upstash Redis REST API) ───────────────────────────────────────
 const KV_URL   = (process.env.KV_REST_API_URL   || '').replace(/\/$/, '')
@@ -28,37 +28,6 @@ async function kvSet(key: string, value: string, ex = 86400 * 30): Promise<void>
       cache: 'no-store',
     })
   } catch {}
-}
-
-// Redis List: rasmlarni ro'yxatga qo'shish
-async function kvListPush(key: string, value: string, ex = 300): Promise<void> {
-  if (!KV_URL || !KV_TOKEN) return
-  try {
-    await fetch(`${KV_URL}/pipeline`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify([
-        ['rpush', key, value],
-        ['expire', key, ex],
-      ]),
-      cache: 'no-store',
-    })
-  } catch {}
-}
-
-// Redis List: hamma elementlarni olish
-async function kvListGetAll(key: string): Promise<string[]> {
-  if (!KV_URL || !KV_TOKEN) return []
-  try {
-    const r = await fetch(`${KV_URL}/pipeline`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify([['lrange', key, 0, 99]]),
-      cache: 'no-store',
-    })
-    const j = await r.json()
-    return Array.isArray(j[0]?.result) ? j[0].result : []
-  } catch { return [] }
 }
 
 // ── Photo helpers ─────────────────────────────────────────────────────────────
@@ -92,21 +61,20 @@ export async function POST(req: NextRequest) {
     const msg = update.message || update.channel_post
     if (!msg) return NextResponse.json({ ok: true })
 
-    const chatId = msg.chat?.id as number | undefined
-    const photos = msg.photo as any[] | undefined
+    const chatId   = msg.chat?.id as number | undefined
+    const photos   = msg.photo as any[] | undefined
     if (!photos || photos.length === 0) return NextResponse.json({ ok: true })
 
     // Admin tekshiruv
     const adminIds = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean)
-    const senderId = String(msg.from?.id || '')
+    const senderId = String(msg.from?.id || msg.chat?.id || '')
     if (adminIds.length > 0 && !adminIds.includes(senderId)) {
       if (chatId) await sendMsg(chatId, '⛔ Sizda rasm yuborish huquqi yoq.')
       return NextResponse.json({ ok: true })
     }
 
     const caption = (msg.caption || '') as string
-    const mgId   = msg.media_group_id as string | undefined
-    const photo  = photos[photos.length - 1] // eng katta hajm
+    const photo   = photos[photos.length - 1]
     const photoData: PhotoEntry = {
       file_id:        photo.file_id,
       file_unique_id: photo.file_unique_id,
@@ -115,77 +83,46 @@ export async function POST(req: NextRequest) {
 
     const captionMatch = caption.match(/#?(\d{5,9})\b/)
 
-    // ════════════════════════════════════════════════════════════════════════
-    // MEDIA GROUP (albom): har bir rasm ro'yxatga qo'shiladi
-    // Caption li rasm 3 sek kutib, hammani birlashtiradi
-    // ════════════════════════════════════════════════════════════════════════
-    if (mgId) {
-      // Har qanday rasm (caption li yoki yo'q) ro'yxatga qo'shiladi
-      await kvListPush(`mglist:${mgId}`, JSON.stringify(photoData), 300)
+    // ── CRM ID aniqlash ───────────────────────────────────────────────────────
+    // 1. Caption dan
+    // 2. Session dan (5 daqiqa avval yuborilgan ID)
+    let crmId: string | null = captionMatch ? captionMatch[1] : null
 
-      if (captionMatch) {
-        const crmId = captionMatch[1]
-        await kvSet(`mgcrmid:${mgId}`, crmId, 300)
-
-        // Qolgan rasmlar kelishini kutamiz (Telegram ~1-2 sek ichida yuboradi)
-        await new Promise(r => setTimeout(r, 2500))
-
-        // Ro'yxatdan hamma rasmlarni olish
-        const allRaw = await kvListGetAll(`mglist:${mgId}`)
-        const groupPhotos: PhotoEntry[] = []
-        for (const s of allRaw) {
-          try {
-            const p: PhotoEntry = JSON.parse(s)
-            if (!groupPhotos.some(e => e.file_unique_id === p.file_unique_id)) {
-              groupPhotos.push(p)
-            }
-          } catch {}
-        }
-
-        // Mavjud rasmlar bilan birlashtirish
-        const existing = await getPhotos(crmId)
-        const merged = [...existing]
-        for (const p of groupPhotos) {
-          if (!merged.some(e => e.file_unique_id === p.file_unique_id)) {
-            merged.push(p)
-          }
-        }
-
-        await savePhotos(crmId, merged)
-
-        if (chatId) {
-          await sendMsg(chatId,
-            `✅ CRM <b>#${crmId}</b>\n📸 ${merged.length} ta rasm saqlandi`)
-        }
-        console.log(`Album saved: CRM #${crmId}, ${merged.length} photos`)
-      }
-      // Caption siz rasmlar — faqat ro'yxatga qo'shildi, tamom
-      return NextResponse.json({ ok: true })
+    if (!crmId && senderId) {
+      crmId = await kvGet(`session:${senderId}`)
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // YAKKA RASM
-    // ════════════════════════════════════════════════════════════════════════
-    if (!captionMatch) {
+    if (!crmId) {
       if (chatId) await sendMsg(chatId,
-        '❌ CRM ID topilmadi.\n\nCaption da ID yozing:\n<code>#38042635</code>')
+        '❌ CRM ID topilmadi.\n\nBirinchi rasmga caption da ID yozing:\n<code>#38042635</code>\n\nKeyin 5 daqiqa ichida qolgan rasmlarni shunchaki yuboring.')
       return NextResponse.json({ ok: true })
     }
 
-    const crmId   = captionMatch[1]
-    const existing = await getPhotos(crmId)
-    const isNew    = existing.length === 0
+    // Session yangilash (har rasm yuborganda 5 daqiqa uzaytiradi)
+    if (senderId) await kvSet(`session:${senderId}`, crmId, 300)
 
-    if (!existing.some(p => p.file_unique_id === photoData.file_unique_id)) {
+    // ── Rasmni saqlash ────────────────────────────────────────────────────────
+    const existing  = await getPhotos(crmId)
+    const isNew     = existing.length === 0
+    const duplicate = existing.some(p => p.file_unique_id === photoData.file_unique_id)
+
+    if (!duplicate) {
       existing.push(photoData)
       await savePhotos(crmId, existing)
     }
 
-    if (chatId) {
-      await sendMsg(chatId,
-        `${isNew ? '✅' : '➕'} CRM <b>#${crmId}</b>\n📸 ${existing.length} ta rasm saqlandi`)
+    const total = existing.length
+
+    // Faqat birinchi (caption li) rasmda yoki har 5 ta rasmda xabar
+    const isFirst = !!captionMatch
+    if (isFirst || total % 5 === 0) {
+      if (chatId) await sendMsg(chatId,
+        `${isNew ? '✅' : '➕'} CRM <b>#${crmId}</b>\n` +
+        `📸 ${total} ta rasm saqlandi` +
+        (isFirst && !isNew ? '\n⚡ Session ochiq — 5 daqiqa ichida qolgan rasmlarni yuboring' : ''))
     }
-    console.log(`Single photo: CRM #${crmId}, ${existing.length} total`)
+
+    console.log(`Photo saved: CRM #${crmId} (${total} total), sender: ${senderId}`)
   } catch (e) {
     console.error('tg-webhook error:', e)
   }
