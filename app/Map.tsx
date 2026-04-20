@@ -418,11 +418,68 @@ export default function MapPage() {
 // MAP CARD (bottom sheet ON map, no dark overlay)
 // ────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────
+// FULLSCREEN LIGHTBOX
+// ────────────────────────────────────────────────────────────
+function Lightbox({ crmId, count, initial, onClose }: {
+  crmId: number; count: number; initial: number; onClose: () => void
+}) {
+  const [cur, setCur] = useState(initial)
+  const startX = useRef(0)
+
+  const prev = () => setCur(c => Math.max(0, c - 1))
+  const next = () => setCur(c => Math.min(count - 1, c + 1))
+
+  const onTS = (e: React.TouchEvent) => { startX.current = e.touches[0].clientX }
+  const onTE = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - startX.current
+    if (dx < -40) next()
+    else if (dx > 40) prev()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[999] bg-black flex flex-col"
+      onTouchStart={onTS} onTouchEnd={onTE}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+        <span className="text-white/60 text-sm font-medium">{cur+1} / {count}</span>
+        <button onClick={onClose} className="text-white p-2"><IcX/></button>
+      </div>
+      {/* Image */}
+      <div className="flex-1 flex items-center justify-center px-2 pb-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`/api/photo/${crmId}?index=${cur}`} alt=""
+          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:8}}/>
+      </div>
+      {/* Arrows */}
+      {count > 1 && (
+        <div className="absolute inset-y-0 inset-x-0 flex items-center justify-between px-2 pointer-events-none">
+          <button onClick={prev} disabled={cur===0} className="pointer-events-auto w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white disabled:opacity-20">‹</button>
+          <button onClick={next} disabled={cur===count-1} className="pointer-events-auto w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white disabled:opacity-20">›</button>
+        </div>
+      )}
+      {/* Dots */}
+      {count > 1 && count <= 10 && (
+        <div className="flex justify-center gap-1.5 pb-6 flex-shrink-0">
+          {Array.from({length: count}, (_, i) => (
+            <div key={i} onClick={() => setCur(i)} style={{
+              width: i===cur ? 16 : 6, height: 6, borderRadius: 3,
+              background: i===cur ? 'white' : 'rgba(255,255,255,0.35)',
+              transition:'all 0.2s', cursor:'pointer'
+            }}/>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
 // PHOTO CAROUSEL
 // ────────────────────────────────────────────────────────────
 function PhotoCarousel({ crmId }: { crmId: number }) {
   const [count, setCount] = useState(1)
   const [current, setCurrent] = useState(0)
+  const [lightbox, setLightbox] = useState<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -439,16 +496,21 @@ function PhotoCarousel({ crmId }: { crmId: number }) {
   }
 
   return (
+    <>
+    {lightbox !== null && (
+      <Lightbox crmId={crmId} count={count} initial={lightbox} onClose={() => setLightbox(null)}/>
+    )}
     <div className="relative bg-slate-800 rounded-2xl overflow-hidden mb-3" style={{height:'220px'}}>
       <div ref={scrollRef} onScroll={handleScroll}
         className="flex h-full"
         style={{overflowX:'scroll',scrollSnapType:'x mandatory',scrollbarWidth:'none'}}>
         {Array.from({length: count}, (_, i) => (
-          <div key={i} style={{minWidth:'100%',scrollSnapAlign:'start',background:'#1e293b'}}>
+          <div key={i} style={{minWidth:'100%',scrollSnapAlign:'start',background:'#1e293b'}}
+            onClick={() => setLightbox(i)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`/api/photo/${crmId}?index=${i}`} alt=""
               className="w-full h-full"
-              style={{objectFit:'contain'}}
+              style={{objectFit:'contain',cursor:'pointer'}}
               onError={e => { (e.target as HTMLImageElement).style.display='none' }}/>
           </div>
         ))}
@@ -470,6 +532,7 @@ function PhotoCarousel({ crmId }: { crmId: number }) {
         </>
       )}
     </div>
+    </>
   )
 }
 
