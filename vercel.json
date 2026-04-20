@@ -1,4 +1,7 @@
 {
-  "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npx prisma generate && npm run build"
+  "functions": {
+    "app/api/tg-bot-webhook/route.ts": {
+      "maxDuration": 15
+    }
+  }
 }
