@@ -437,34 +437,54 @@ function Lightbox({ crmId, count, initial, onClose }: {
   }
 
   return (
-    <div className="fixed inset-0 z-[999] bg-black flex flex-col"
+    <div className="fixed inset-0 z-[999] bg-black"
+      style={{touchAction:'pan-y'}}
       onTouchStart={onTS} onTouchEnd={onTE}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
-        <span className="text-white/60 text-sm font-medium">{cur+1} / {count}</span>
-        <button onClick={onClose} className="text-white p-2"><IcX/></button>
+
+      {/* Rasm — to'liq ekran */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/api/photo/${crmId}?index=${cur}`} alt=""
+        style={{
+          position:'absolute', inset:0,
+          width:'100%', height:'100%',
+          objectFit:'contain',
+        }}
+      />
+
+      {/* Overlay: yopish + counter */}
+      <div className="absolute top-0 inset-x-0 flex items-center justify-between px-4 pt-10 pb-4"
+        style={{background:'linear-gradient(to bottom,rgba(0,0,0,0.6) 0%,transparent 100%)'}}>
+        <span className="text-white text-sm font-semibold">{cur+1} / {count}</span>
+        <button onClick={onClose}
+          className="w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white">
+          <IcX/>
+        </button>
       </div>
-      {/* Image */}
-      <div className="flex-1 flex items-center justify-center px-2 pb-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/api/photo/${crmId}?index=${cur}`} alt=""
-          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:8}}/>
-      </div>
-      {/* Arrows */}
+
+      {/* Chap/o'ng strelkalar */}
       {count > 1 && (
-        <div className="absolute inset-y-0 inset-x-0 flex items-center justify-between px-2 pointer-events-none">
-          <button onClick={prev} disabled={cur===0} className="pointer-events-auto w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white disabled:opacity-20">‹</button>
-          <button onClick={next} disabled={cur===count-1} className="pointer-events-auto w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white disabled:opacity-20">›</button>
+        <div className="absolute inset-y-0 inset-x-0 flex items-center justify-between px-3 pointer-events-none">
+          <button onClick={prev} disabled={cur===0}
+            className="pointer-events-auto w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white text-xl font-bold disabled:opacity-20">
+            ‹
+          </button>
+          <button onClick={next} disabled={cur===count-1}
+            className="pointer-events-auto w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white text-xl font-bold disabled:opacity-20">
+            ›
+          </button>
         </div>
       )}
-      {/* Dots */}
-      {count > 1 && count <= 10 && (
-        <div className="flex justify-center gap-1.5 pb-6 flex-shrink-0">
+
+      {/* Pastki dots */}
+      {count > 1 && count <= 12 && (
+        <div className="absolute bottom-0 inset-x-0 flex justify-center gap-1.5 pb-10"
+          style={{background:'linear-gradient(to top,rgba(0,0,0,0.5) 0%,transparent 100%)'}}>
           {Array.from({length: count}, (_, i) => (
             <div key={i} onClick={() => setCur(i)} style={{
-              width: i===cur ? 16 : 6, height: 6, borderRadius: 3,
-              background: i===cur ? 'white' : 'rgba(255,255,255,0.35)',
-              transition:'all 0.2s', cursor:'pointer'
+              width: i===cur ? 18 : 6, height: 6, borderRadius: 3,
+              background: i===cur ? 'white' : 'rgba(255,255,255,0.4)',
+              transition:'all 0.2s', cursor:'pointer',
             }}/>
           ))}
         </div>
