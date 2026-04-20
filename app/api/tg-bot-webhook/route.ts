@@ -85,7 +85,16 @@ export async function POST(req: NextRequest) {
       if (mgId) await kvSet(`mg:${mgId}`, crmId, 120)
     } else if (mgId) {
       // Birinchi rasmdan keyin kelgan rasmlar — KV'dan ID olamiz
+      // Retry: birinchi rasm KV'ga yozilishiga vaqt berish (race condition)
       crmId = await kvGet(`mg:${mgId}`)
+      if (!crmId) {
+        await new Promise(r => setTimeout(r, 800))
+        crmId = await kvGet(`mg:${mgId}`)
+      }
+      if (!crmId) {
+        await new Promise(r => setTimeout(r, 1200))
+        crmId = await kvGet(`mg:${mgId}`)
+      }
     }
 
     if (!crmId) {

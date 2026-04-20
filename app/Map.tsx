@@ -291,7 +291,11 @@ export default function MapPage() {
     window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(lines)}`, '_blank')
   }
 
-  const callSeller = () => { window.location.href = 'tel:+998915514499' }
+  const callSeller = () => {
+    const tg = (window as any).Telegram?.WebApp
+    if (tg?.openLink) tg.openLink('tel:+998915514499')
+    else window.open('tel:+998915514499')
+  }
   const cycleLang = () => setLang(l => l==='uz'?'ru':l==='ru'?'en':'uz')
 
   if (loading) return (
