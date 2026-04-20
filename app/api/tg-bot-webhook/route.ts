@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const maxDuration = 10 // Vercel Hobby plan max (sekund)
+
 // ── Vercel KV (Upstash Redis REST API) ───────────────────────────────────────
 const KV_URL   = (process.env.KV_REST_API_URL   || '').replace(/\/$/, '')
 const KV_TOKEN = process.env.KV_REST_API_TOKEN   || ''
