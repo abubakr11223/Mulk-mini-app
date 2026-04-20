@@ -1,7 +1,7 @@
 {
   "functions": {
     "app/api/tg-bot-webhook/route.ts": {
-      "maxDuration": 15
+      "maxDuration": 10
     }
   }
 }

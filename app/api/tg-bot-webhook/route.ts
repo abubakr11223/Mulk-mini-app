@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
         await kvSet(`mgcrmid:${mgId}`, crmId, 300)
 
         // Qolgan rasmlar kelishini kutamiz (Telegram ~1-2 sek ichida yuboradi)
-        await new Promise(r => setTimeout(r, 3500))
+        await new Promise(r => setTimeout(r, 2500))
 
         // Ro'yxatdan hamma rasmlarni olish
         const allRaw = await kvListGetAll(`mglist:${mgId}`)
