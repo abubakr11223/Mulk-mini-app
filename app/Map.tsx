@@ -90,8 +90,8 @@ const EMPTY: Filters = {
 }
 
 type Tab = 'gallery' | 'map' | 'filter'
-const ZOOM_DOT = 13
-const ZOOM_LABEL = 15
+const ZOOM_DOT = 9
+const ZOOM_LABEL = 14
 
 // ────────────────────────────────────────────────────────────
 // HELPERS
@@ -227,7 +227,9 @@ export default function MapPage() {
         const w = Math.max(64, lbl.length * 8.5 + 22)
         href = makePriceSvg(lbl); size = [w, 34]; offset = [-w/2, -34]
       } else {
-        href = makeDotSvg(); size = [16, 16]; offset = [-8, -8]
+        // Zoom ga qarab dot o'lchami: yaqin = 16, uzoq = 10
+        const d = zoom >= 12 ? 16 : zoom >= 11 ? 13 : 10
+        href = makeDotSvg(); size = [d, d]; offset = [-d/2, -d/2]
       }
 
       const pm = new ymaps.Placemark([h.lat, h.lng], { hintContent: h.title }, {
