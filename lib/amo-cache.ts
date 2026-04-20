@@ -36,7 +36,7 @@ declare global {
 
 if (!global.__amoCache) global.__amoCache = null
 
-export const TTL = 5 * 60 * 1000   // 5 daqiqa
+export const TTL = 60 * 1000   // 60 sekund (CRM o'zgarishlar tez ko'rinsin)
 
 export function getCache(): Cache | null {
   return global.__amoCache
