@@ -10,10 +10,18 @@ export async function POST(req: NextRequest) {
 
     if (!token) return NextResponse.json({ ok: false, error: 'No token' })
 
+    const isAnon = String(userId).startsWith('anon_')
+    const userLine = isAnon
+      ? `👤 <b>Anonim foydalanuvchi</b>`
+      : username && username !== 'unknown'
+        ? `👤 <a href="tg://user?id=${userId}">@${username}</a> (ID: <code>${userId}</code>)`
+        : `👤 <a href="tg://user?id=${userId}">Foydalanuvchi</a> (ID: <code>${userId}</code>)`
+
     const text =
       `💬 <b>Yangi savol / xabar</b>\n\n` +
-      `👤 <b>${username || 'Noma\'lum'}</b> (ID: <code>${userId || '?'}</code>)\n\n` +
-      `📝 ${message}`
+      `${userLine}\n\n` +
+      `📝 ${message}\n\n` +
+      (isAnon ? '' : `💌 Javob berish: <a href="tg://user?id=${userId}">shu yerga bosing</a>`)
 
     await Promise.all(adminIds.map(adminId =>
       fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

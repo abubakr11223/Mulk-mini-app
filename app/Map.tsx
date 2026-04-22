@@ -23,6 +23,7 @@ const T = {
     newTag: 'Yangi', rooms_n: (n: number) => `${n} xona`,
     floor_n: (f: number, t: number | string) => `${f}/${t}-qavat`,
     area_n: (a: number) => `${a} m²`,
+    askBtn: 'Savol', askTitle: 'Savol yoki taklif', askPlaceholder: 'Savolingizni yozing...', askSend: 'Yuborish', askSending: 'Yuborilmoqda...', askSent: 'Xabaringiz yuborildi!', askSentSub: 'Tez orada javob beramiz',
   },
   ru: {
     gallery: 'Галерея', mapTab: 'На карте', filter: 'Фильтры',
@@ -40,6 +41,7 @@ const T = {
     newTag: 'Новый', rooms_n: (n: number) => `${n} комн`,
     floor_n: (f: number, t: number | string) => `${f}/${t} эт`,
     area_n: (a: number) => `${a} м²`,
+    askBtn: 'Вопрос', askTitle: 'Вопрос или предложение', askPlaceholder: 'Напишите ваш вопрос...', askSend: 'Отправить', askSending: 'Отправка...', askSent: 'Сообщение отправлено!', askSentSub: 'Скоро ответим',
   },
   en: {
     gallery: 'Gallery', mapTab: 'Map', filter: 'Filter',
@@ -57,6 +59,7 @@ const T = {
     newTag: 'New', rooms_n: (n: number) => `${n} rooms`,
     floor_n: (f: number, t: number | string) => `${f}/${t}F`,
     area_n: (a: number) => `${a} m²`,
+    askBtn: 'Question', askTitle: 'Question or suggestion', askPlaceholder: 'Write your question...', askSend: 'Send', askSending: 'Sending...', askSent: 'Message sent!', askSentSub: 'We\'ll reply soon',
   },
 }
 
@@ -206,7 +209,7 @@ export default function MapPage() {
     const userId   = tgUserId || `anon_${Math.random().toString(36).slice(2,9)}`
     const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || 'unknown'
 
-    // Admin tekshiruv
+    // Admin tekshiruv (Telegram ID yoki maxfiy kod orqali)
     const ADMIN_IDS = ['8546867911']
     if (tgUserId && ADMIN_IDS.includes(String(tgUserId))) setIsAdmin(true)
 
@@ -233,6 +236,20 @@ export default function MapPage() {
     const countId = setInterval(fetchCount, 30_000)
     return () => { clearInterval(pingId); clearInterval(countId) }
   }, [])
+
+  // ── Admin mode: logoga 5 marta bosish ────────────────────────────────────
+  const adminTapRef = useRef(0)
+  const adminTapTimer = useRef<any>(null)
+  const handleLogoTap = () => {
+    adminTapRef.current += 1
+    clearTimeout(adminTapTimer.current)
+    if (adminTapRef.current >= 5) {
+      setIsAdmin(prev => !prev)
+      adminTapRef.current = 0
+    } else {
+      adminTapTimer.current = setTimeout(() => { adminTapRef.current = 0 }, 2000)
+    }
+  }
 
   // ── Online users panel (admin) ────────────────────────────────────────────
   const openOnlinePanel = () => {
@@ -481,21 +498,21 @@ export default function MapPage() {
         <div className="fixed inset-0 z-50 flex items-end justify-center" style={{background:'rgba(0,0,0,0.7)'}}>
           <div className="w-full max-w-md bg-slate-900 rounded-t-2xl p-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-bold text-base">💬 Savol yoki taklif</h2>
+              <h2 className="text-white font-bold text-base">💬 {t.askTitle}</h2>
               <button onClick={() => { setShowFeedback(false); setFeedbackText('') }} className="text-slate-400 hover:text-white text-xl">✕</button>
             </div>
             {feedbackSent ? (
               <div className="text-center py-6">
                 <p className="text-2xl mb-2">✅</p>
-                <p className="text-white font-medium">Xabaringiz yuborildi!</p>
-                <p className="text-slate-400 text-sm mt-1">Tez orada javob beramiz</p>
+                <p className="text-white font-medium">{t.askSent}</p>
+                <p className="text-slate-400 text-sm mt-1">{t.askSentSub}</p>
               </div>
             ) : (
               <>
                 <textarea
                   value={feedbackText}
                   onChange={e => setFeedbackText(e.target.value)}
-                  placeholder="Savolingizni yozing..."
+                  placeholder={t.askPlaceholder}
                   className="w-full bg-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-sm outline-none resize-none"
                   rows={4}
                   style={{fontSize:'16px'}}
@@ -504,7 +521,7 @@ export default function MapPage() {
                   onClick={sendFeedback}
                   disabled={!feedbackText.trim() || feedbackSending}
                   className="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-xl text-white font-bold text-sm transition-colors">
-                  {feedbackSending ? 'Yuborilmoqda...' : '📤 Yuborish'}
+                  {feedbackSending ? t.askSending : `📤 ${t.askSend}`}
                 </button>
               </>
             )}
@@ -514,7 +531,7 @@ export default function MapPage() {
 
       {/* HEADER */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8 flex-shrink-0">
-        <div>
+        <div onClick={handleLogoTap} style={{cursor:'default',userSelect:'none'}}>
           <p className="text-[11px] font-bold tracking-[0.2em] text-blue-400 uppercase">Mulk Invest</p>
           <p className="text-xs text-slate-400">{t.objects(filtered.length)}</p>
         </div>
@@ -539,7 +556,7 @@ export default function MapPage() {
           {!isAdmin && (
             <button onClick={() => setShowFeedback(true)}
               className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold text-white transition-colors">
-              💬 Savol
+              💬 {t.askBtn}
             </button>
           )}
           <button onClick={cycleLang}
