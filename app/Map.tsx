@@ -667,3 +667,5 @@ function Rng({ mn, mx, oMn, oMx, t }: { mn: string; mx: string; oMn: (v: string)
       <span className="text-slate-600 font-bold select-none">—</span>
       <input type="number" placeholder={t.to_} value={mx} onChange={e => oMx(e.target.value)} className={cls} style={{ fontSize: '16px' }} />
     </div>
+  )
+}
