@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 
-// ── Vercel KV (Upstash Redis REST) ────────────────────────────────────────────
 const KV_URL   = (process.env.KV_REST_API_URL   || '').replace(/\/$/, '')
 const KV_TOKEN = process.env.KV_REST_API_TOKEN   || ''
 
@@ -17,30 +16,35 @@ async function kvPipeline(commands: any[][]): Promise<any[]> {
   } catch { return [] }
 }
 
-// ── GET /api/online-count ─────────────────────────────────────────────────────
-// Hozir online bo'lgan foydalanuvchilar soni (oxirgi 5 daqiqada active)
 export async function GET() {
   try {
-    const now = Date.now()
-    const fiveMinutesAgo = now - 5 * 60 * 1000
+    const now        = Date.now()
+    const fiveMinAgo = now - 5 * 60 * 1000
 
-    // Eski yozuvlarni tozalab, keyin count olish
     const results = await kvPipeline([
-      ['zremrangebyscore', 'online:users', '-inf', fiveMinutesAgo],
+      ['zremrangebyscore', 'online:users', '-inf', fiveMinAgo],
       ['zcard', 'online:users'],
-      // Barcha online userIdlarni ham qaytaramiz (admin uchun)
-      ['zrangebyscore', 'online:users', fiveMinutesAgo, '+inf'],
+      ['zrangebyscore', 'online:users', fiveMinAgo, '+inf'],
     ])
 
-    const count: number = results[1]?.result ?? 0
+    const count: number     = results[1]?.result ?? 0
     const userIds: string[] = results[2]?.result ?? []
 
-    return NextResponse.json({
-      ok: true,
-      online: count,
-      userIds,
-      timestamp: new Date().toISOString(),
-    })
+    // Admin panel uchun: har bir user username + lastSeen
+    let users: { id: string; username: string; lastSeen: number }[] = []
+    if (userIds.length > 0) {
+      const detailRes = await kvPipeline(userIds.map(id => ['get', `online:user:${id}`]))
+      users = userIds.map((id, i) => {
+        try {
+          const d = JSON.parse(detailRes[i]?.result || '{}')
+          return { id, username: d.username || 'Noma\'lum', lastSeen: d.lastSeen || 0 }
+        } catch {
+          return { id, username: 'Noma\'lum', lastSeen: 0 }
+        }
+      }).sort((a, b) => b.lastSeen - a.lastSeen)
+    }
+
+    return NextResponse.json({ ok: true, online: count, userIds, users, timestamp: new Date().toISOString() })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 })
   }

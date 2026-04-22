@@ -170,6 +170,13 @@ export default function MapPage() {
   const [lang,    setLang]    = useState<Lang>('uz')
   const [lightbox,setLightbox]= useState<{crmId:number;count:number;idx:number}|null>(null)
   const [onlineCount, setOnlineCount] = useState<number | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [showOnlinePanel, setShowOnlinePanel] = useState(false)
+  const [onlineUsers, setOnlineUsers] = useState<{id:string;username:string;lastSeen:number}[]>([])
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [feedbackSending, setFeedbackSending] = useState(false)
+  const [feedbackSent, setFeedbackSent] = useState(false)
 
   const t = T[lang]
   const filtered = applyFilters(houses, filters, search)
@@ -195,8 +202,13 @@ export default function MapPage() {
   // ── Presence heartbeat + app_open event ──────────────────────────────────
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp
-    const userId   = tg?.initDataUnsafe?.user?.id || `anon_${Math.random().toString(36).slice(2,9)}`
+    const tgUserId = tg?.initDataUnsafe?.user?.id
+    const userId   = tgUserId || `anon_${Math.random().toString(36).slice(2,9)}`
     const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || 'unknown'
+
+    // Admin tekshiruv
+    const ADMIN_IDS = ['8546867911']
+    if (tgUserId && ADMIN_IDS.includes(String(tgUserId))) setIsAdmin(true)
 
     // App ochildi — analytics
     track('app_open')
@@ -221,6 +233,35 @@ export default function MapPage() {
     const countId = setInterval(fetchCount, 30_000)
     return () => { clearInterval(pingId); clearInterval(countId) }
   }, [])
+
+  // ── Online users panel (admin) ────────────────────────────────────────────
+  const openOnlinePanel = () => {
+    setShowOnlinePanel(true)
+    fetch('/api/online-count')
+      .then(r => r.json())
+      .then(d => { if (d.ok) { setOnlineCount(d.online); setOnlineUsers(d.users || []) } })
+      .catch(() => {})
+  }
+
+  // ── Feedback yuborish ─────────────────────────────────────────────────────
+  const sendFeedback = async () => {
+    if (!feedbackText.trim()) return
+    const tg = (window as any).Telegram?.WebApp
+    const userId   = tg?.initDataUnsafe?.user?.id || 'anon'
+    const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || 'Noma\'lum'
+    setFeedbackSending(true)
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, username, message: feedbackText }),
+      })
+      setFeedbackSent(true)
+      setFeedbackText('')
+      setTimeout(() => { setFeedbackSent(false); setShowFeedback(false) }, 2000)
+    } catch {}
+    setFeedbackSending(false)
+  }
 
   const load = useCallback(async (force = false) => {
     setSyncing(true)
@@ -394,6 +435,83 @@ export default function MapPage() {
         />
       )}
 
+      {/* ── ADMIN: Online users panel ──────────────────────────────────── */}
+      {showOnlinePanel && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{background:'rgba(0,0,0,0.7)'}}>
+          <div className="w-full max-w-md bg-slate-900 rounded-t-2xl p-4" style={{maxHeight:'80vh',overflowY:'auto'}}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-bold text-base">🟢 Online foydalanuvchilar ({onlineCount})</h2>
+              <button onClick={() => setShowOnlinePanel(false)} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+            {onlineUsers.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-4">Hozir hech kim online emas</p>
+            ) : (
+              <div className="space-y-2">
+                {onlineUsers.map(u => {
+                  const secAgo = Math.floor((Date.now() - u.lastSeen) / 1000)
+                  const timeStr = secAgo < 60 ? `${secAgo}s oldin` : `${Math.floor(secAgo/60)}m oldin`
+                  const isAnon = String(u.id).startsWith('anon_')
+                  return (
+                    <div key={u.id} className="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{isAnon ? '👤' : '🙍'}</span>
+                        <div>
+                          <p className="text-white text-sm font-medium">
+                            {isAnon ? 'Anonim' : (u.username || 'Noma\'lum')}
+                          </p>
+                          <p className="text-slate-400 text-xs">ID: {u.id}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-green-400">{timeStr}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <button onClick={openOnlinePanel}
+              className="mt-4 w-full py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-white text-sm transition-colors">
+              🔄 Yangilash
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── FEEDBACK: Savol yuborish modal ────────────────────────────── */}
+      {showFeedback && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{background:'rgba(0,0,0,0.7)'}}>
+          <div className="w-full max-w-md bg-slate-900 rounded-t-2xl p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-bold text-base">💬 Savol yoki taklif</h2>
+              <button onClick={() => { setShowFeedback(false); setFeedbackText('') }} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+            {feedbackSent ? (
+              <div className="text-center py-6">
+                <p className="text-2xl mb-2">✅</p>
+                <p className="text-white font-medium">Xabaringiz yuborildi!</p>
+                <p className="text-slate-400 text-sm mt-1">Tez orada javob beramiz</p>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="Savolingizni yozing..."
+                  className="w-full bg-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-sm outline-none resize-none"
+                  rows={4}
+                  style={{fontSize:'16px'}}
+                />
+                <button
+                  onClick={sendFeedback}
+                  disabled={!feedbackText.trim() || feedbackSending}
+                  className="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-xl text-white font-bold text-sm transition-colors">
+                  {feedbackSending ? 'Yuborilmoqda...' : '📤 Yuborish'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8 flex-shrink-0">
         <div>
@@ -401,19 +519,29 @@ export default function MapPage() {
           <p className="text-xs text-slate-400">{t.objects(filtered.length)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Online foydalanuvchilar — har doim ko'rinadi */}
-          <div className="flex items-center gap-1 px-2 py-1 bg-slate-800 rounded-lg">
-            <span style={{
-              width: 7, height: 7, borderRadius: '50%',
-              background: onlineCount !== null ? '#22c55e' : '#64748b',
-              display: 'inline-block',
-              boxShadow: onlineCount !== null ? '0 0 6px #22c55e' : 'none',
-              animation: onlineCount !== null ? 'pulse-green 2s infinite' : 'none',
-            }}/>
-            <span className="text-xs font-semibold text-white">
-              {onlineCount !== null ? onlineCount : '—'}
-            </span>
-          </div>
+          {/* Online counter — faqat admin ko'radi */}
+          {isAdmin && (
+            <button onClick={openOnlinePanel}
+              className="flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: onlineCount !== null ? '#22c55e' : '#64748b',
+                display: 'inline-block',
+                boxShadow: onlineCount !== null ? '0 0 6px #22c55e' : 'none',
+                animation: onlineCount !== null ? 'pulse-green 2s infinite' : 'none',
+              }}/>
+              <span className="text-xs font-semibold text-white">
+                {onlineCount !== null ? onlineCount : '—'}
+              </span>
+            </button>
+          )}
+          {/* Savol tugmasi — admindan boshqa hammaga */}
+          {!isAdmin && (
+            <button onClick={() => setShowFeedback(true)}
+              className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold text-white transition-colors">
+              💬 Savol
+            </button>
+          )}
           <button onClick={cycleLang}
             className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold tracking-wide transition-colors">
             {lang.toUpperCase()}
