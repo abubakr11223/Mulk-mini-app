@@ -195,38 +195,31 @@ export default function MapPage() {
   // ── Presence heartbeat + app_open event ──────────────────────────────────
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp
-    const userId   = tg?.initDataUnsafe?.user?.id
+    const userId   = tg?.initDataUnsafe?.user?.id || `anon_${Math.random().toString(36).slice(2,9)}`
     const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || 'unknown'
 
     // App ochildi — analytics
     track('app_open')
 
-    if (!userId) return
-
-    const ping = () => {
-      fetch('/api/presence', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, username }),
-      }).catch(() => {})
-    }
-
-    ping()
-    const id = setInterval(ping, 30_000)
-    return () => clearInterval(id)
-  }, [])
-
-  // ── Online count: har 30 sekundda yangilab turadi ─────────────────────────
-  useEffect(() => {
     const fetchCount = () => {
       fetch('/api/online-count')
         .then(r => r.json())
         .then(d => { if (d.ok) setOnlineCount(d.online) })
         .catch(() => {})
     }
-    fetchCount()
-    const id = setInterval(fetchCount, 30_000)
-    return () => clearInterval(id)
+
+    const ping = () => {
+      fetch('/api/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, username }),
+      }).then(() => fetchCount()).catch(() => {})
+    }
+
+    ping()
+    const pingId = setInterval(ping, 30_000)
+    const countId = setInterval(fetchCount, 30_000)
+    return () => { clearInterval(pingId); clearInterval(countId) }
   }, [])
 
   const load = useCallback(async (force = false) => {
