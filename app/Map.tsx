@@ -184,7 +184,12 @@ export default function MapPage() {
 
   const t = T[lang]
   const filtered = applyFilters(houses, filters, search)
-    .sort((a, b) => (b.isTop ? 1 : 0) - (a.isTop ? 1 : 0))
+    .sort((a, b) => {
+      // Admin: yangi qo'shilganlar birinchi (updatedAt bo'yicha)
+      if (isAdmin) return (b.updatedAt || 0) - (a.updatedAt || 0)
+      // Oddiy foydalanuvchi: TOP birinchi
+      return (b.isTop ? 1 : 0) - (a.isTop ? 1 : 0)
+    })
   const fCount = Object.entries(filters).filter(([k,v]) => k==='type'?v!=='all':v!=='').length
 
   useEffect(() => {
