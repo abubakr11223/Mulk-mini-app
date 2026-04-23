@@ -24,7 +24,7 @@ export async function GET() {
     const results = await kvPipeline([
       ['zremrangebyscore', 'online:users', '-inf', cutoff],
       ['zcard', 'online:users'],
-      ['zrangebyscore', 'online:users', fiveMinAgo, '+inf'],
+      ['zrangebyscore', 'online:users', cutoff, '+inf'],
     ])
 
     const count: number     = results[1]?.result ?? 0
