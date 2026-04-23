@@ -272,7 +272,7 @@ export async function GET(req: Request) {
         let coords = extractCoords(url)
         if (!coords) coords = resolvedUrlCache[url] ? extractCoords(resolvedUrlCache[url]) : null
         if (!coords) coords = fileCache[String(lead.id)] ?? null
-        if (!coords) { skipped++; continue }
+        if (!coords) { coords = { lat: 0, lng: 0 } }
 
         const rawPrice = lead.price ?? 0
         const rawOldPrice = FIELD_IDS.old_price
