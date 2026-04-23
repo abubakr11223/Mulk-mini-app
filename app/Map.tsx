@@ -231,10 +231,42 @@ export default function MapPage() {
       }).then(() => fetchCount()).catch(() => {})
     }
 
+    // Chiqganda darhol o'chirish
+    const leave = () => {
+      navigator.sendBeacon('/api/presence', JSON.stringify({ userId, username, _leave: true }))
+      fetch('/api/presence', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+        keepalive: true,
+      }).catch(() => {})
+    }
+
+    // Visibility change — app yashirilsa/ko'rsatilsa
+    const onVisibility = () => {
+      if (document.hidden) {
+        leave()
+      } else {
+        ping()
+      }
+    }
+
     ping()
-    const pingId = setInterval(ping, 30_000)
-    const countId = setInterval(fetchCount, 30_000)
-    return () => { clearInterval(pingId); clearInterval(countId) }
+    const pingId = setInterval(ping, 25_000)
+    const countId = setInterval(fetchCount, 25_000)
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('beforeunload', leave)
+    const tg = (window as any).Telegram?.WebApp
+    if (tg?.onEvent) tg.onEvent('viewportChanged', () => { if (tg.viewportHeight === 0) leave() })
+
+    return () => {
+      clearInterval(pingId)
+      clearInterval(countId)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('beforeunload', leave)
+      leave()
+    }
   }, [])
 
   // ── Admin mode: logoga 5 marta bosish ────────────────────────────────────

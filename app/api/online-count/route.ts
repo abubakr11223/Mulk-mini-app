@@ -18,11 +18,11 @@ async function kvPipeline(commands: any[][]): Promise<any[]> {
 
 export async function GET() {
   try {
-    const now        = Date.now()
-    const fiveMinAgo = now - 5 * 60 * 1000
+    const now    = Date.now()
+    const cutoff = now - 90 * 1000  // 90 sekund
 
     const results = await kvPipeline([
-      ['zremrangebyscore', 'online:users', '-inf', fiveMinAgo],
+      ['zremrangebyscore', 'online:users', '-inf', cutoff],
       ['zcard', 'online:users'],
       ['zrangebyscore', 'online:users', fiveMinAgo, '+inf'],
     ])
