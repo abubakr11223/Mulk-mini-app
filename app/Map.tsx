@@ -205,9 +205,10 @@ export default function MapPage() {
   // ── Presence heartbeat + app_open event ──────────────────────────────────
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp
-    const tgUserId = tg?.initDataUnsafe?.user?.id
-    const userId   = tgUserId || `anon_${Math.random().toString(36).slice(2,9)}`
-    const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || 'unknown'
+    const tgUserId  = tg?.initDataUnsafe?.user?.id
+    const userId    = tgUserId || `anon_${Math.random().toString(36).slice(2,9)}`
+    const tgUser    = tg?.initDataUnsafe?.user
+    const username  = tgUser?.username || tgUser?.first_name || (tgUserId ? `user${tgUserId}` : 'unknown')
 
     // Admin tekshiruv (Telegram ID yoki maxfiy kod orqali)
     const ADMIN_IDS = ['8546867911']
@@ -990,9 +991,12 @@ function GCard({h,t,onClick,onImageClick}:{
   h:House; t:typeof T['uz']; onClick:()=>void
   onImageClick:(crmId:number,count:number,idx:number)=>void
 }) {
-  const [photoErr,setPhotoErr]=useState(false)
   const [photoCount,setPhotoCount]=useState(1)
+  const [curIdx,setCurIdx]=useState(0)
+  const [imgErrors,setImgErrors]=useState<Record<number,boolean>>({})
   const disc = discount(h.oldPrice, h.price)
+  const touchStartX = useRef(0)
+  const touchDeltaX = useRef(0)
 
   useEffect(()=>{
     fetch(`/api/photo/${h.id}?count=1`)
@@ -1001,37 +1005,61 @@ function GCard({h,t,onClick,onImageClick}:{
       .catch(()=>{})
   },[h.id])
 
+  const prevPhoto=(e:React.TouchEvent|React.MouseEvent)=>{
+    e.stopPropagation()
+    setCurIdx(i=>Math.max(0,i-1))
+  }
+  const nextPhoto=(e:React.TouchEvent|React.MouseEvent)=>{
+    e.stopPropagation()
+    setCurIdx(i=>Math.min(photoCount-1,i+1))
+  }
+  const onTouchStart=(e:React.TouchEvent)=>{
+    touchStartX.current=e.touches[0].clientX
+    touchDeltaX.current=0
+  }
+  const onTouchMove=(e:React.TouchEvent)=>{
+    touchDeltaX.current=e.touches[0].clientX-touchStartX.current
+  }
+  const onTouchEnd=(e:React.TouchEvent)=>{
+    const dx=touchDeltaX.current
+    if(Math.abs(dx)>40){
+      e.stopPropagation()
+      if(dx<0) setCurIdx(i=>Math.min(photoCount-1,i+1))
+      else      setCurIdx(i=>Math.max(0,i-1))
+    } else if(Math.abs(dx)<8){
+      onClick()
+    }
+  }
+
+  const hasPhoto = !imgErrors[curIdx]
+
   return (
     <div
-      className={`w-full rounded-2xl overflow-hidden active:scale-[0.985] transition-transform ${
-        h.isTop
-          ? 'bg-slate-800 border border-yellow-500/40'
-          : 'bg-slate-800 border border-white/5'
+      className={`w-full rounded-2xl overflow-hidden ${
+        h.isTop ? 'bg-slate-800 border border-yellow-500/40' : 'bg-slate-800 border border-white/5'
       }`}
       onClick={onClick}
     >
-      {/* ── RASM: yuqori qism, 4:3, ramka bilan teng ── */}
+      {/* ── RASM ── */}
       <div
         className="relative overflow-hidden cursor-pointer"
         style={{ paddingTop: '72%', background: '#0f172a' }}
-        onClick={e => { e.stopPropagation(); !photoErr && onImageClick(h.id, photoCount, 0) }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={e => e.stopPropagation()}
       >
-        {!photoErr ? (
+        {hasPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={`/api/photo/${h.id}`}
+            key={curIdx}
+            src={`/api/photo/${h.id}?index=${curIdx}`}
             alt={h.title}
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%',
-              objectFit: 'cover',
-              display: 'block',
-            }}
-            onError={() => setPhotoErr(true)}
+            style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+            onError={() => setImgErrors(prev=>({...prev,[curIdx]:true}))}
           />
         ) : (
-          <div style={{ position: 'absolute', inset: 0 }}
-            className="flex items-center justify-center bg-slate-700">
+          <div style={{position:'absolute',inset:0}} className="flex items-center justify-center bg-slate-700">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.2">
               <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
               <polyline points="9 22 9 12 15 12 15 22"/>
@@ -1045,7 +1073,21 @@ function GCard({h,t,onClick,onImageClick}:{
         </div>
         {disc > 0 && <span className="absolute top-2.5 right-2.5 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">−{disc}%</span>}
         {h.price > 0 && <span className="absolute bottom-2.5 right-2.5 bg-black/70 text-white text-sm font-bold px-2.5 py-1 rounded-xl">{priceLbl(h.price)}</span>}
-        {photoCount > 1 && <span className="absolute bottom-2.5 left-2.5 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full">📷 {photoCount}</span>}
+        {/* Photo dots */}
+        {photoCount > 1 && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {Array.from({length:Math.min(photoCount,7)},(_,i)=>(
+              <span key={i} style={{width:5,height:5,borderRadius:'50%',background:i===curIdx?'#fff':'rgba(255,255,255,0.4)',display:'inline-block'}}/>
+            ))}
+          </div>
+        )}
+        {/* Prev/Next arrows (on desktop) */}
+        {photoCount>1&&curIdx>0&&(
+          <button onClick={prevPhoto} className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">‹</button>
+        )}
+        {photoCount>1&&curIdx<photoCount-1&&(
+          <button onClick={nextPhoto} className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">›</button>
+        )}
       </div>
 
       {/* ── INFO: pastki qism ── */}
