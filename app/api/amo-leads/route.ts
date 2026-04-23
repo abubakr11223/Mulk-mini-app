@@ -7,7 +7,7 @@ import https from 'https'
 import http from 'http'
 import fs from 'fs'
 import path from 'path'
-import { clearCache, getCache, House, isFresh, setCache } from '@/lib/amo-cache'
+import { clearCache, getCache, House, isFresh, setCache } from '../../../lib/amo-cache'
 
 // coords_cache.json dan koordinatalar (deploy vaqtida o'qiladi)
 let fileCache: Record<string, { lat: number; lng: number }> = {}
@@ -174,19 +174,57 @@ async function resolveUrlsBatch(urls: string[], batchSize = 15): Promise<Record<
   return result
 }
 
+// ── Redis KV cache (serverless instancelar orasida umumiy) ───────────────────
+const KV_URL   = (process.env.KV_REST_API_URL   || '').replace(/\/$/, '')
+const KV_TOKEN = process.env.KV_REST_API_TOKEN   || ''
+const KV_KEY   = 'cache:amo-leads'
+const KV_TTL   = 300  // 5 daqiqa
+
+async function kvGetLeads(): Promise<House[] | null> {
+  if (!KV_URL || !KV_TOKEN) return null
+  try {
+    const r = await fetch(`${KV_URL}/get/${encodeURIComponent(KV_KEY)}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` }, cache: 'no-store',
+    })
+    const j = await r.json()
+    if (!j.result) return null
+    return JSON.parse(j.result)
+  } catch { return null }
+}
+
+async function kvSetLeads(data: House[]): Promise<void> {
+  if (!KV_URL || !KV_TOKEN) return
+  try {
+    await fetch(`${KV_URL}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([['set', KV_KEY, JSON.stringify(data), 'EX', KV_TTL]]),
+      cache: 'no-store',
+    })
+  } catch {}
+}
+
 // ── GET /api/amo-leads ────────────────────────────────────────────────────────
 export async function GET(req: Request) {
   const forceRefresh = new URL(req.url).searchParams.get('force') === '1'
 
+  // 1. In-memory cache (eng tez)
   if (!forceRefresh && isFresh()) {
     const cached = getCache()!
     return NextResponse.json(cached.data, {
-      headers: {
-        'X-Cache': 'HIT',
-        'X-Count': String(cached.data.length),
-        'Cache-Control': 'public, max-age=300',
-      },
+      headers: { 'X-Cache': 'MEMORY', 'X-Count': String(cached.data.length) },
     })
+  }
+
+  // 2. Redis cache (serverless cold-start uchun)
+  if (!forceRefresh) {
+    const kvData = await kvGetLeads()
+    if (kvData && kvData.length > 0) {
+      setCache(kvData)
+      return NextResponse.json(kvData, {
+        headers: { 'X-Cache': 'REDIS', 'X-Count': String(kvData.length) },
+      })
+    }
   }
 
   const subdomain = (process.env.AMOCRM_SUBDOMAIN || '').replace(/"/g, '')
@@ -267,6 +305,7 @@ export async function GET(req: Request) {
     }
 
     setCache(results)
+    kvSetLeads(results).catch(() => {}) // Redis ga ham saqlaydi
     console.log(`📍 ${results.length}/${allLeads.length} xaritaga tushdi, ${skipped} o'tkazib yuborildi`)
 
     return NextResponse.json(results, {

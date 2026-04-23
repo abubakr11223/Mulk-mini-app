@@ -416,7 +416,7 @@ export default function MapPage() {
     const userId = tgApp?.initDataUnsafe?.user?.id
 
     if (userId) {
-      // Mobile Telegram: bot shu yerdan rasm+info yuboradi
+      // Mobile: bot rasm+info yuboradi, keyin bot chatini ochamiz
       try {
         setShareToast('⏳ Yuborilmoqda...')
         await fetch('/api/share-property', {
@@ -432,13 +432,19 @@ export default function MapPage() {
             jk: h.jk, yandex_url: h.yandex_url,
           }),
         })
-        setShareToast('✅ Bot chatiga yuborildi! U yerdan forward qiling')
-        setTimeout(() => setShareToast(null), 3000)
+        setShareToast('✅ Bot chatiga yuborildi!')
+        setTimeout(() => {
+          setShareToast(null)
+          // Bot chatini ochamiz — user u yerdan forward qiladi
+          const botLink = 'https://t.me/mulkinvestbot'
+          if (tgApp?.openTelegramLink) tgApp.openTelegramLink(botLink)
+          else window.open(botLink, '_blank')
+        }, 1500)
       } catch {
         setShareToast(null)
       }
     } else {
-      // Mac Telegram: bot chatini ochib, /start share_ID yuboradi → bot rasmni qaytaradi
+      // Mac Telegram: bot chatini ochib, /start share_ID yuboradi
       const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
       if (tgApp?.openTelegramLink) tgApp.openTelegramLink(botLink)
       else window.open(botLink, '_blank')
@@ -472,9 +478,12 @@ export default function MapPage() {
       {/* LIGHTBOX — MapPage darajasida (transform muammosiz) */}
       {/* Share toast */}
       {shareToast && (
-        <div className="fixed top-16 inset-x-4 z-[60] flex justify-center pointer-events-none">
-          <div className="bg-slate-800 text-white text-sm px-4 py-2.5 rounded-2xl shadow-xl border border-white/10">
-            {shareToast}
+        <div className="fixed bottom-24 inset-x-6 z-[60] flex justify-center pointer-events-none">
+          <div className="bg-slate-700 text-white text-sm px-5 py-3 rounded-2xl shadow-2xl border border-white/15 text-center">
+            <p className="font-semibold">{shareToast}</p>
+            {shareToast.includes('✅') && (
+              <p className="text-xs text-slate-300 mt-0.5">Bot chatidan xohlagan odamga yuboring</p>
+            )}
           </div>
         </div>
       )}
