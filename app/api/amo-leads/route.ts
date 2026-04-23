@@ -254,12 +254,34 @@ export async function GET(req: Request) {
       console.log(`✅ URL resolve tugadi`)
     }
 
-    // 3. Lidlarni House ga o'tkazish
+    // 3. Admin editlarini olish
+    const adminEditKeys = allLeads.map(l => ['get', `admin:edit:${l.id}`])
+    const adminEditsRaw = adminEditKeys.length > 0
+      ? await (async () => {
+          const r = await fetch(`${KV_URL}/pipeline`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(adminEditKeys), cache: 'no-store',
+          })
+          return await r.json()
+        })()
+      : []
+    const adminEdits: Record<string, any> = {}
+    allLeads.forEach((l, i) => {
+      try { adminEdits[l.id] = JSON.parse(adminEditsRaw[i]?.result || '{}') } catch { adminEdits[l.id] = {} }
+    })
+
+    // 4. Lidlarni House ga o'tkazish
     const results: House[] = []
     let skipped = 0
 
     for (const lead of allLeads) {
       try {
+        const edit = adminEdits[lead.id] || {}
+
+        // Admin tomonidan yashirilgan uylarni o'tkazib yuboramiz
+        if (edit.hidden) { skipped++; continue }
+
         const fields = lead.custom_fields_values || []
         let url = getField(fields, FIELD_IDS.yandex_url)
 
@@ -272,19 +294,20 @@ export async function GET(req: Request) {
         let coords = extractCoords(url)
         if (!coords) coords = resolvedUrlCache[url] ? extractCoords(resolvedUrlCache[url]) : null
         if (!coords) coords = fileCache[String(lead.id)] ?? null
-        if (!coords) { coords = { lat: 0, lng: 0 } }
+        if (!coords) coords = { lat: 0, lng: 0 }
 
         const rawPrice = lead.price ?? 0
         const rawOldPrice = FIELD_IDS.old_price
           ? parseFloat(getField(fields, FIELD_IDS.old_price)) || 0
           : 0
 
+        const basePrice = rawPrice < 10_000 ? rawPrice * 1_000 : rawPrice
         results.push({
           id: lead.id,
-          title: lead.name || `Lid #${lead.id}`,
+          title: edit.titleOverride || lead.name || `Lid #${lead.id}`,
           lat: coords.lat,
           lng: coords.lng,
-          price: rawPrice < 10_000 ? rawPrice * 1_000 : rawPrice,
+          price: edit.priceOverride || basePrice,
           oldPrice: rawOldPrice < 10_000 && rawOldPrice > 0 ? rawOldPrice * 1_000 : rawOldPrice,
           rooms: parseInt(getField(fields, FIELD_IDS.rooms)) || 0,
           area: parseFloat(getField(fields, FIELD_IDS.area)) || 0,
@@ -296,7 +319,7 @@ export async function GET(req: Request) {
           jk: getField(fields, FIELD_IDS.jk),
           yandex_url: getField(fields, FIELD_IDS.yandex_url),
           updatedAt: lead.updated_at ?? 0,
-          isTop: lead.status_id === TOP_STATUS_ID,
+          isTop: edit.isTop !== undefined ? edit.isTop : lead.status_id === TOP_STATUS_ID,
         })
       } catch (e) {
         console.error(`Lid ${lead.id} xato:`, e)

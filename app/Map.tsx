@@ -181,6 +181,10 @@ export default function MapPage() {
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackSending, setFeedbackSending] = useState(false)
   const [feedbackSent, setFeedbackSent] = useState(false)
+  const [editTarget, setEditTarget] = useState<House | null>(null)
+  const [editData, setEditData] = useState<{priceOverride?:number;titleOverride?:string;isTop?:boolean;hidden?:boolean}>({})
+  const [editSaving, setEditSaving] = useState(false)
+  const [editToast, setEditToast] = useState<string|null>(null)
 
   const t = T[lang]
   const filtered = applyFilters(houses, filters, search)
@@ -287,6 +291,39 @@ export default function MapPage() {
     } else {
       adminTapTimer.current = setTimeout(() => { adminTapRef.current = 0 }, 2000)
     }
+  }
+
+  // ── Admin: uyni tahrirlash ────────────────────────────────────────────────
+  const openEdit = (h: House) => {
+    setEditTarget(h)
+    setEditData({ priceOverride: h.price, titleOverride: h.title, isTop: h.isTop, hidden: false })
+  }
+  const saveEdit = async () => {
+    if (!editTarget) return
+    setEditSaving(true)
+    try {
+      const res = await fetch('/api/admin/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ crmId: editTarget.id, ...editData }),
+      })
+      const d = await res.json()
+      if (d.ok) {
+        setEditToast('✅ Saqlandi!')
+        setEditTarget(null)
+        setTimeout(() => { setEditToast(null); load(true) }, 1500)
+      }
+    } catch {}
+    setEditSaving(false)
+  }
+  const hideHouse = async (h: House) => {
+    await fetch('/api/admin/edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crmId: h.id, hidden: true }),
+    })
+    setEditToast('🚫 Yashirildi')
+    setTimeout(() => { setEditToast(null); load(true) }, 1500)
   }
 
   // ── Online users panel (admin) ────────────────────────────────────────────
@@ -473,6 +510,60 @@ export default function MapPage() {
     <div className="flex flex-col bg-slate-900 text-white" style={{height:'100dvh',overflow:'hidden'}}>
 
       {/* LIGHTBOX — MapPage darajasida (transform muammosiz) */}
+      {/* Edit toast */}
+      {editToast && (
+        <div className="fixed bottom-24 inset-x-6 z-[60] flex justify-center pointer-events-none">
+          <div className="bg-slate-700 text-white text-sm px-5 py-3 rounded-2xl shadow-2xl border border-white/15 text-center">
+            {editToast}
+          </div>
+        </div>
+      )}
+
+      {/* Admin Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{background:'rgba(0,0,0,0.75)'}}>
+          <div className="w-full max-w-md bg-slate-900 rounded-t-2xl p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-bold text-base">✏️ Tahrirlash</h2>
+              <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            {/* Nom */}
+            <div className="mb-3">
+              <p className="text-slate-400 text-xs mb-1">Nomi</p>
+              <input type="text" value={editData.titleOverride||''} onChange={e=>setEditData(d=>({...d,titleOverride:e.target.value}))}
+                className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500"
+                style={{fontSize:'16px'}}/>
+            </div>
+
+            {/* Narx */}
+            <div className="mb-4">
+              <p className="text-slate-400 text-xs mb-1">Narx ($)</p>
+              <input type="number" inputMode="numeric" value={editData.priceOverride||''} onChange={e=>setEditData(d=>({...d,priceOverride:Number(e.target.value)}))}
+                className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500"
+                style={{fontSize:'16px'}}/>
+            </div>
+
+            {/* Toggles */}
+            <div className="flex gap-2 mb-4">
+              <button onClick={()=>setEditData(d=>({...d,isTop:!d.isTop}))}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${editData.isTop?'bg-yellow-500 text-black':'bg-slate-800 text-slate-300 border border-white/10'}`}>
+                ⭐ TOP
+              </button>
+              <button onClick={()=>hideHouse(editTarget)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors">
+                🚫 Yashirish
+              </button>
+            </div>
+
+            <button onClick={saveEdit} disabled={editSaving}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 rounded-2xl text-white font-bold transition-colors">
+              {editSaving ? 'Saqlanmoqda...' : '💾 Saqlash'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Share toast */}
       {shareToast && (
         <div className="fixed bottom-24 inset-x-6 z-[60] flex justify-center pointer-events-none">
@@ -689,6 +780,8 @@ export default function MapPage() {
                   key={h.id} h={h} t={t}
                   onClick={()=>openCard(h)}
                   onImageClick={(crmId,count,idx)=>{ setLightbox({crmId,count,idx}); track('photo_view',{crmId}) }}
+                  isAdmin={isAdmin}
+                  onEdit={openEdit}
                 />
               ))}
             </div>
@@ -1004,9 +1097,10 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
 // ────────────────────────────────────────────────────────────
 // GALLERY CARD
 // ────────────────────────────────────────────────────────────
-function GCard({h,t,onClick,onImageClick}:{
-  h:House; t:typeof T['uz']; onClick:()=>void
+function GCard({h,t,onClick,onImageClick,onEdit,isAdmin}:{
+  h:House; t:typeof T['uz']; onClick:()=>void; isAdmin?:boolean
   onImageClick:(crmId:number,count:number,idx:number)=>void
+  onEdit?:(h:House)=>void
 }) {
   const [photoCount,setPhotoCount]=useState(1)
   const [curIdx,setCurIdx]=useState(0)
@@ -1123,6 +1217,15 @@ function GCard({h,t,onClick,onImageClick}:{
           <button onClick={nextPhoto} className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">›</button>
         )}
       </div>
+
+      {/* Admin edit tugmasi */}
+      {isAdmin && (
+        <button
+          onClick={e => { e.stopPropagation(); onEdit?.(h) }}
+          className="absolute top-2.5 right-2.5 bg-black/60 text-white text-xs px-2 py-1 rounded-lg z-10 flex items-center gap-1">
+          ✏️
+        </button>
+      )}
 
       {/* ── INFO: pastki qism ── */}
       <div className="px-3.5 py-3 cursor-pointer" onClick={onClick}>
