@@ -465,18 +465,23 @@ export default function MapPage() {
             ) : (
               <div className="space-y-2">
                 {onlineUsers.map(u => {
-                  const secAgo = Math.floor((Date.now() - u.lastSeen) / 1000)
+                  const secAgo = Math.max(0, Math.floor((Date.now() - u.lastSeen) / 1000))
                   const timeStr = secAgo < 60 ? `${secAgo}s oldin` : `${Math.floor(secAgo/60)}m oldin`
                   const isAnon = String(u.id).startsWith('anon_')
+                  const tgLink = !isAnon ? `tg://user?id=${u.id}` : null
                   return (
-                    <div key={u.id} className="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2.5">
+                    <div key={u.id}
+                      onClick={() => tgLink && window.open(tgLink, '_blank')}
+                      className={`flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2.5 ${!isAnon ? 'cursor-pointer active:bg-slate-700' : ''}`}>
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{isAnon ? '👤' : '🙍'}</span>
+                        <span className="text-lg">{isAnon ? '👤' : '🙍‍♂️'}</span>
                         <div>
                           <p className="text-white text-sm font-medium">
-                            {isAnon ? 'Anonim' : (u.username || 'Noma\'lum')}
+                            {isAnon ? 'Anonim' : (u.username || `User ${u.id}`)}
                           </p>
-                          <p className="text-slate-400 text-xs">ID: {u.id}</p>
+                          <p className="text-slate-400 text-xs">
+                            {isAnon ? `ID: ${u.id}` : `@${u.username || u.id} • bosib oching`}
+                          </p>
                         </div>
                       </div>
                       <span className="text-xs text-green-400">{timeStr}</span>
