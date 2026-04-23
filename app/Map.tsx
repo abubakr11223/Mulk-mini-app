@@ -233,7 +233,6 @@ export default function MapPage() {
 
     // Chiqganda darhol o'chirish
     const leave = () => {
-      navigator.sendBeacon('/api/presence', JSON.stringify({ userId, username, _leave: true }))
       fetch('/api/presence', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
