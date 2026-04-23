@@ -416,13 +416,18 @@ export default function MapPage() {
     if (!userId) {
       // Fallback: open t.me/share if no userId
       const lines = [
-        `🏠 ${h.title}`, `🆔 CRM #${h.id}`, `💰 ${priceStr(h.price)}`,
+        `🏠 ${h.title}`,
+        `💰 ${priceStr(h.price)}`,
         h.rooms ? `🛏 ${t.rooms_n(h.rooms)}` : '',
         h.area  ? `📐 ${t.area_n(h.area)}` : '',
         h.floor ? `🏢 ${t.floor_n(h.floor, h.totalFloors||'?')}` : '',
-        h.jk ? `🏗 ${h.jk}` : '', h.district ? `📍 ${h.district}` : '',
+        h.jk ? `🏗 ${h.jk}` : '',
+        h.district ? `📍 ${h.district}` : '',
         h.landmark ? `🗺 ${h.landmark}` : '',
-        h.yandex_url ? `\n📌 ${h.yandex_url}` : '',
+        `🆔 CRM #${h.id}`,
+        ``,
+        `📞 +998 91 551 44 99`,
+        h.yandex_url ? `📌 ${h.yandex_url}` : '',
       ].filter(Boolean).join('\n')
       const url = h.yandex_url || `https://t.me/mulkinvestbot`
       window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(lines)}`, '_blank')
@@ -1124,37 +1129,81 @@ function FPanel({f,setF,t,onApply,onReset}:{
   t:typeof T['uz']; onApply:()=>void; onReset:()=>void
 }) {
   const set=(k:keyof Filters)=>(v:string)=>setF(p=>({...p,[k]:v}))
+  const inp="bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder-slate-600 focus:border-blue-500 outline-none w-full text-center"
+  const label="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1"
   return (
-    <div className="absolute inset-0 overflow-y-auto bg-slate-900" style={{paddingBottom:'88px'}}>
-      <div className="p-4 space-y-5">
-        <Sec title={t.district}>
-          <select className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-3 text-white"
-            style={{fontSize:'16px'}} value={f.district} onChange={e=>set('district')(e.target.value)}>
-            <option value="">{t.allDistricts}</option>
-            {DISTRICTS.map(d=><option key={d} value={d.toLowerCase()}>{d}</option>)}
-          </select>
-        </Sec>
+    <div className="absolute inset-0 overflow-y-auto bg-slate-900" style={{paddingBottom:'68px'}}>
+      <div className="p-3 space-y-3">
 
-        <Sec title={t.type}>
-          <div className="flex gap-2">
-            {([{v:'all' as const,l:t.all},{v:'new' as const,l:t.newBuild},{v:'secondary' as const,l:t.secondary}]).map(o=>(
-              <button key={o.v} onClick={()=>setF(p=>({...p,type:o.v}))}
-                className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  f.type===o.v?'bg-blue-600 text-white':'bg-slate-800 text-slate-300 border border-white/10'
-                }`} style={{fontSize:'14px'}}>{o.l}</button>
-            ))}
+        {/* Rayon */}
+        <select className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm"
+          style={{fontSize:'16px'}} value={f.district} onChange={e=>set('district')(e.target.value)}>
+          <option value="">{t.allDistricts}</option>
+          {DISTRICTS.map(d=><option key={d} value={d.toLowerCase()}>{d}</option>)}
+        </select>
+
+        {/* Tur */}
+        <div className="flex gap-1.5">
+          {([{v:'all' as const,l:t.all},{v:'new' as const,l:t.newBuild},{v:'secondary' as const,l:t.secondary}]).map(o=>(
+            <button key={o.v} onClick={()=>setF(p=>({...p,type:o.v}))}
+              className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${
+                f.type===o.v?'bg-blue-600 text-white':'bg-slate-800 text-slate-300 border border-white/10'
+              }`}>{o.l}</button>
+          ))}
+        </div>
+
+        {/* 2-ustunli grid: xonalar + kvadratura */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <p className={label}>{t.rooms}</p>
+            <div className="flex gap-1 items-center">
+              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.roomMin} onChange={e=>set('roomMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+              <span className="text-slate-600 text-xs">—</span>
+              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.roomMax} onChange={e=>set('roomMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+            </div>
           </div>
-        </Sec>
+          <div>
+            <p className={label}>{t.area} m²</p>
+            <div className="flex gap-1 items-center">
+              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.areaMin} onChange={e=>set('areaMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+              <span className="text-slate-600 text-xs">—</span>
+              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.areaMax} onChange={e=>set('areaMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+            </div>
+          </div>
+          <div>
+            <p className={label}>{t.floor}</p>
+            <div className="flex gap-1 items-center">
+              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.floorMin} onChange={e=>set('floorMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+              <span className="text-slate-600 text-xs">—</span>
+              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.floorMax} onChange={e=>set('floorMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+            </div>
+          </div>
+          <div>
+            <p className={label}>{t.floors}</p>
+            <div className="flex gap-1 items-center">
+              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.floorsMin} onChange={e=>set('floorsMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+              <span className="text-slate-600 text-xs">—</span>
+              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.floorsMax} onChange={e=>set('floorsMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
+            </div>
+          </div>
+        </div>
 
-        <Sec title={t.rooms}>  <Rng mn={f.roomMin}  mx={f.roomMax}  oMn={set('roomMin')}  oMx={set('roomMax')}  t={t}/></Sec>
-        <Sec title={t.area}>   <Rng mn={f.areaMin}  mx={f.areaMax}  oMn={set('areaMin')}  oMx={set('areaMax')}  t={t}/></Sec>
-        <Sec title={t.floors}> <Rng mn={f.floorsMin} mx={f.floorsMax} oMn={set('floorsMin')} oMx={set('floorsMax')} t={t}/></Sec>
-        <Sec title={t.floor}>  <Rng mn={f.floorMin} mx={f.floorMax} oMn={set('floorMin')} oMx={set('floorMax')} t={t}/></Sec>
-        <Sec title={t.price}>  <Rng mn={f.priceMin} mx={f.priceMax} oMn={set('priceMin')} oMx={set('priceMax')} t={t}/></Sec>
+        {/* Narx */}
+        <div>
+          <p className={label}>{t.price} ($)</p>
+          <div className="flex gap-2 items-center">
+            <input type="number" inputMode="numeric" placeholder={t.from_} value={f.priceMin} onChange={e=>set('priceMin')(e.target.value)}
+              className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:border-blue-500 outline-none" style={{fontSize:'16px'}}/>
+            <span className="text-slate-600">—</span>
+            <input type="number" inputMode="numeric" placeholder={t.to_} value={f.priceMax} onChange={e=>set('priceMax')(e.target.value)}
+              className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:border-blue-500 outline-none" style={{fontSize:'16px'}}/>
+          </div>
+        </div>
+
       </div>
-      <div className="fixed bottom-0 inset-x-0 flex gap-3 px-4 py-3 bg-slate-900/96 border-t border-white/10">
-        <button onClick={onReset} className="flex-1 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">{t.reset}</button>
-        <button onClick={onApply} className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold transition-colors">{t.apply}</button>
+      <div className="fixed bottom-0 inset-x-0 flex gap-2 px-3 py-2.5 bg-slate-900/96 border-t border-white/10">
+        <button onClick={onReset} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">{t.reset}</button>
+        <button onClick={onApply} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold transition-colors">{t.apply}</button>
       </div>
     </div>
   )
