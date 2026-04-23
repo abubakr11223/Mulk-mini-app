@@ -257,8 +257,8 @@ export default function MapPage() {
 
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('beforeunload', leave)
-    const tg = (window as any).Telegram?.WebApp
-    if (tg?.onEvent) tg.onEvent('viewportChanged', () => { if (tg.viewportHeight === 0) leave() })
+    const tgApp = (window as any).Telegram?.WebApp
+    if (tgApp?.onEvent) tgApp.onEvent('viewportChanged', () => { if (tgApp.viewportHeight === 0) leave() })
 
     return () => {
       clearInterval(pingId)
