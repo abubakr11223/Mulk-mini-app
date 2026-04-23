@@ -416,38 +416,35 @@ export default function MapPage() {
     const userId = tgApp?.initDataUnsafe?.user?.id
 
     if (userId) {
-      // Mobile: bot rasm+info yuboradi, keyin bot chatini ochamiz
-      try {
-        setShareToast('⏳ Yuborilmoqda...')
-        await fetch('/api/share-property', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId, crmId: h.id,
-            title: h.title, price: priceStr(h.price),
-            rooms: h.rooms > 0 ? String(h.rooms) : '',
-            area:  h.area  > 0 ? String(h.area)  : '',
-            floor: h.floor, totalFloors: h.totalFloors,
-            district: h.district, landmark: h.landmark,
-            jk: h.jk, yandex_url: h.yandex_url,
-          }),
-        })
-        setShareToast('✅ Bot chatiga yuborildi!')
-        setTimeout(() => {
-          setShareToast(null)
-          // Bot chatini ochamiz — user u yerdan forward qiladi
-          const botLink = 'https://t.me/mulkinvestbot'
-          if (tgApp?.openTelegramLink) tgApp.openTelegramLink(botLink)
-          else window.open(botLink, '_blank')
-        }, 1500)
-      } catch {
-        setShareToast(null)
-      }
+      // Bot foydalanuvchi chatiga rasm+info yuboradi (hech qayerga o'tmasdan)
+      setShareToast('⏳ Yuborilmoqda...')
+      fetch('/api/share-property', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId, crmId: h.id,
+          title: h.title, price: priceStr(h.price),
+          rooms: h.rooms > 0 ? String(h.rooms) : '',
+          area:  h.area  > 0 ? String(h.area)  : '',
+          floor: h.floor, totalFloors: h.totalFloors,
+          district: h.district, landmark: h.landmark,
+          jk: h.jk, yandex_url: h.yandex_url,
+        }),
+      }).then(() => {
+        setShareToast('✅ Yuborildi!')
+        setTimeout(() => setShareToast(null), 3000)
+      }).catch(() => setShareToast(null))
     } else {
-      // Mac Telegram: bot chatini ochib, /start share_ID yuboradi
-      const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
-      if (tgApp?.openTelegramLink) tgApp.openTelegramLink(botLink)
-      else window.open(botLink, '_blank')
+      // Mac Telegram — faqat matn share
+      const lines = [
+        `🏠 ${h.title}`, h.price>0?`💰 ${priceStr(h.price)}`:'',
+        h.rooms>0?`🛏 ${h.rooms} xona`:'', h.area>0?`📐 ${h.area} m²`:'',
+        h.district?`📍 ${h.district}`:'', `📞 +998 91 551 44 99`,
+      ].filter(Boolean).join('\n')
+      const url = h.yandex_url || 'https://t.me/mulkinvestbot'
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(lines)}`
+      if (tgApp?.openTelegramLink) tgApp.openTelegramLink(shareUrl)
+      else window.open(shareUrl, '_blank')
     }
   }
 
@@ -482,7 +479,7 @@ export default function MapPage() {
           <div className="bg-slate-700 text-white text-sm px-5 py-3 rounded-2xl shadow-2xl border border-white/15 text-center">
             <p className="font-semibold">{shareToast}</p>
             {shareToast.includes('✅') && (
-              <p className="text-xs text-slate-300 mt-0.5">Bot chatidan xohlagan odamga yuboring</p>
+              <p className="text-xs text-slate-300 mt-0.5">Mulk Invest botidan xohlagan odamga yuboring</p>
             )}
           </div>
         </div>
