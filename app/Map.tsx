@@ -412,29 +412,12 @@ export default function MapPage() {
   const shareHouse = (h: House) => {
     track('share_click', { crmId: h.id, district: h.district })
     const tgApp = (window as any).Telegram?.WebApp
-
-    const text = [
-      `🏠 ${h.title}`,
-      h.price  > 0 ? `💰 ${priceStr(h.price)}` : '',
-      h.rooms  > 0 ? `🛏 ${h.rooms} xona` : '',
-      h.area   > 0 ? `📐 ${h.area} m²` : '',
-      h.floor  > 0 ? `🏢 ${h.floor}/${h.totalFloors||'?'}-qavat` : '',
-      h.jk      ? `🏗 ${h.jk}` : '',
-      h.district? `📍 ${h.district}` : '',
-      h.landmark? `🗺 ${h.landmark}` : '',
-      '',
-      `📞 +998 91 551 44 99`,
-    ].filter(s => s !== undefined && s !== null && (s.length > 0 || true))
-     .join('\n')
-     .trim()
-
-    const url  = h.yandex_url || 'https://t.me/mulkinvestbot'
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
-
+    // Bot orqali rasm + ma'lumot yuboradi, user keyin forward qiladi
+    const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
     if (tgApp?.openTelegramLink) {
-      tgApp.openTelegramLink(shareUrl)
+      tgApp.openTelegramLink(botLink)
     } else {
-      window.open(shareUrl, '_blank')
+      window.open(botLink, '_blank')
     }
   }
 
@@ -855,9 +838,10 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
   house:House; t:typeof T['uz']; onClose:()=>void; onShare:()=>void; onCall:()=>void
   onOpenLightbox:(crmId:number,count:number,idx:number)=>void
 }) {
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const startY   = useRef(0)
-  const dragging = useRef(false)
+  const sheetRef  = useRef<HTMLDivElement>(null)
+  const startY    = useRef(0)
+  const dragging  = useRef(false)
+  const [fullscreen, setFullscreen] = useState(false)
 
   const onTS = (e: React.TouchEvent) => {
     startY.current = e.touches[0].clientY
@@ -865,15 +849,17 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
     if (sheetRef.current) { sheetRef.current.style.transition='none' }
   }
   const onTM = (e: React.TouchEvent) => {
-    if (!dragging.current||!sheetRef.current) return
+    if (!dragging.current||!sheetRef.current||fullscreen) return
     const dy = e.touches[0].clientY - startY.current
     if (dy > 0) sheetRef.current.style.transform = `translateY(${dy}px)`
+    else if (dy < -30) { setFullscreen(true); sheetRef.current.style.transform='translateY(0)' }
   }
   const onTE = (e: React.TouchEvent) => {
     if (!dragging.current||!sheetRef.current) return
     dragging.current = false
     const dy = e.changedTouches[0].clientY - startY.current
-    if (dy > 80) { onClose() }
+    if (!fullscreen && dy > 80) { onClose() }
+    else if (fullscreen && dy > 120) { setFullscreen(false) }
     else {
       sheetRef.current.style.transition = 'transform 0.25s ease'
       sheetRef.current.style.transform  = 'translateY(0)'
@@ -890,7 +876,7 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
       {/* Card */}
       <div ref={sheetRef}
         className="slide-up absolute inset-x-0 bottom-0 z-50 bg-slate-900 rounded-t-3xl border-t border-white/10"
-        style={{height:'62dvh',display:'flex',flexDirection:'column'}}>
+        style={{height: fullscreen ? '100dvh' : '62dvh', display:'flex', flexDirection:'column', transition:'height 0.3s ease'}}>
 
         {/* Drag handle — BIG touch area */}
         <div
@@ -900,11 +886,17 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
           <div className="w-10 h-1.5 bg-slate-600 rounded-full"/>
         </div>
 
-        {/* Close btn */}
-        <button onClick={onClose}
-          className="absolute top-2.5 right-3.5 text-slate-500 hover:text-white p-1.5 z-10">
-          <IcX/>
-        </button>
+        {/* Buttons: fullscreen + close */}
+        <div className="absolute top-2 right-3 flex gap-1 z-10">
+          <button onClick={() => setFullscreen(f => !f)}
+            className="text-slate-500 hover:text-white p-1.5 text-sm">
+            {fullscreen ? '⬇' : '⬆'}
+          </button>
+          <button onClick={onClose}
+            className="text-slate-500 hover:text-white p-1.5">
+            <IcX/>
+          </button>
+        </div>
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 pb-2">
@@ -982,7 +974,22 @@ function GCard({h,t,onClick,onImageClick}:{
   const [imgErrors,setImgErrors]=useState<Record<number,boolean>>({})
   const disc = discount(h.oldPrice, h.price)
   const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
   const touchDeltaX = useRef(0)
+  const imgDivRef   = useRef<HTMLDivElement>(null)
+
+  // Horizontal swipe da mini app yopilmasin
+  useEffect(() => {
+    const el = imgDivRef.current
+    if (!el) return
+    const onMove = (e: TouchEvent) => {
+      const dx = Math.abs(e.touches[0].clientX - touchStartX.current)
+      const dy = Math.abs(e.touches[0].clientY - touchStartY.current)
+      if (dx > dy && dx > 8) e.preventDefault()
+    }
+    el.addEventListener('touchmove', onMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onMove)
+  }, [])
 
   useEffect(()=>{
     fetch(`/api/photo/${h.id}?count=1`)
@@ -1001,6 +1008,7 @@ function GCard({h,t,onClick,onImageClick}:{
   }
   const onTouchStart=(e:React.TouchEvent)=>{
     touchStartX.current=e.touches[0].clientX
+    touchStartY.current=e.touches[0].clientY
     touchDeltaX.current=0
   }
   const onTouchMove=(e:React.TouchEvent)=>{
@@ -1028,6 +1036,7 @@ function GCard({h,t,onClick,onImageClick}:{
     >
       {/* ── RASM ── */}
       <div
+        ref={imgDivRef}
         className="relative overflow-hidden cursor-pointer"
         style={{ paddingTop: '72%', background: '#0f172a' }}
         onTouchStart={onTouchStart}
