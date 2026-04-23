@@ -174,6 +174,7 @@ export default function MapPage() {
   const [lightbox,setLightbox]= useState<{crmId:number;count:number;idx:number}|null>(null)
   const [onlineCount, setOnlineCount] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [shareToast, setShareToast] = useState<string | null>(null)
   const [showOnlinePanel, setShowOnlinePanel] = useState(false)
   const [onlineUsers, setOnlineUsers] = useState<{id:string;username:string;lastSeen:number}[]>([])
   const [showFeedback, setShowFeedback] = useState(false)
@@ -409,15 +410,38 @@ export default function MapPage() {
 
   useEffect(() => () => { try { mapObjRef.current?.destroy() } catch {}; mapObjRef.current = null }, [])
 
-  const shareHouse = (h: House) => {
+  const shareHouse = async (h: House) => {
     track('share_click', { crmId: h.id, district: h.district })
-    const tgApp = (window as any).Telegram?.WebApp
-    // Bot orqali rasm + ma'lumot yuboradi, user keyin forward qiladi
-    const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
-    if (tgApp?.openTelegramLink) {
-      tgApp.openTelegramLink(botLink)
+    const tgApp  = (window as any).Telegram?.WebApp
+    const userId = tgApp?.initDataUnsafe?.user?.id
+
+    if (userId) {
+      // Mobile Telegram: bot shu yerdan rasm+info yuboradi
+      try {
+        setShareToast('⏳ Yuborilmoqda...')
+        await fetch('/api/share-property', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId, crmId: h.id,
+            title: h.title, price: priceStr(h.price),
+            rooms: h.rooms > 0 ? String(h.rooms) : '',
+            area:  h.area  > 0 ? String(h.area)  : '',
+            floor: h.floor, totalFloors: h.totalFloors,
+            district: h.district, landmark: h.landmark,
+            jk: h.jk, yandex_url: h.yandex_url,
+          }),
+        })
+        setShareToast('✅ Bot chatiga yuborildi! U yerdan forward qiling')
+        setTimeout(() => setShareToast(null), 3000)
+      } catch {
+        setShareToast(null)
+      }
     } else {
-      window.open(botLink, '_blank')
+      // Mac Telegram: bot chatini ochib, /start share_ID yuboradi → bot rasmni qaytaradi
+      const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
+      if (tgApp?.openTelegramLink) tgApp.openTelegramLink(botLink)
+      else window.open(botLink, '_blank')
     }
   }
 
@@ -446,6 +470,15 @@ export default function MapPage() {
     <div className="flex flex-col bg-slate-900 text-white" style={{height:'100dvh',overflow:'hidden'}}>
 
       {/* LIGHTBOX — MapPage darajasida (transform muammosiz) */}
+      {/* Share toast */}
+      {shareToast && (
+        <div className="fixed top-16 inset-x-4 z-[60] flex justify-center pointer-events-none">
+          <div className="bg-slate-800 text-white text-sm px-4 py-2.5 rounded-2xl shadow-xl border border-white/10">
+            {shareToast}
+          </div>
+        </div>
+      )}
+
       {lightbox && (
         <Lightbox
           crmId={lightbox.crmId} count={lightbox.count} initial={lightbox.idx}
