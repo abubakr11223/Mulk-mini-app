@@ -409,42 +409,32 @@ export default function MapPage() {
 
   useEffect(() => () => { try { mapObjRef.current?.destroy() } catch {}; mapObjRef.current = null }, [])
 
-  const shareHouse = async (h: House) => {
+  const shareHouse = (h: House) => {
     track('share_click', { crmId: h.id, district: h.district })
-    const tg = (window as any).Telegram?.WebApp
-    const userId = tg?.initDataUnsafe?.user?.id
-    if (!userId) {
-      // Fallback: bot orqali rasm + ma'lumot yuborish
-      const tgApp2 = (window as any).Telegram?.WebApp
-      const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
-      if (tgApp2?.openTelegramLink) {
-        tgApp2.openTelegramLink(botLink)
-      } else {
-        window.open(botLink, '_blank')
-      }
-      return
-    }
-    try {
-      await fetch('/api/share-property', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          crmId: h.id,
-          title: h.title,
-          price: priceStr(h.price),
-          rooms: h.rooms > 0 ? String(h.rooms) : '',
-          area:  h.area  > 0 ? String(h.area)  : '',
-          floor: h.floor,
-          totalFloors: h.totalFloors,
-          district: h.district,
-          landmark: h.landmark,
-          jk: h.jk,
-          yandex_url: h.yandex_url,
-        }),
-      })
-    } catch (e) {
-      console.error('share error', e)
+    const tgApp = (window as any).Telegram?.WebApp
+
+    const text = [
+      `🏠 ${h.title}`,
+      h.price  > 0 ? `💰 ${priceStr(h.price)}` : '',
+      h.rooms  > 0 ? `🛏 ${h.rooms} xona` : '',
+      h.area   > 0 ? `📐 ${h.area} m²` : '',
+      h.floor  > 0 ? `🏢 ${h.floor}/${h.totalFloors||'?'}-qavat` : '',
+      h.jk      ? `🏗 ${h.jk}` : '',
+      h.district? `📍 ${h.district}` : '',
+      h.landmark? `🗺 ${h.landmark}` : '',
+      '',
+      `📞 +998 91 551 44 99`,
+    ].filter(s => s !== undefined && s !== null && (s.length > 0 || true))
+     .join('\n')
+     .trim()
+
+    const url  = h.yandex_url || 'https://t.me/mulkinvestbot'
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+
+    if (tgApp?.openTelegramLink) {
+      tgApp.openTelegramLink(shareUrl)
+    } else {
+      window.open(shareUrl, '_blank')
     }
   }
 
