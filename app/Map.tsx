@@ -410,45 +410,43 @@ export default function MapPage() {
 
   useEffect(() => () => { try { mapObjRef.current?.destroy() } catch {}; mapObjRef.current = null }, [])
 
-  const shareHouse = (h: House) => {
+  const shareHouse = async (h: House) => {
     track('share_click', { crmId: h.id, district: h.district })
-    const tgApp  = (window as any).Telegram?.WebApp
-    const userId = tgApp?.initDataUnsafe?.user?.id
+    const tgApp   = (window as any).Telegram?.WebApp
+    const initData = tgApp?.initData || ''
+    const userId  = tgApp?.initDataUnsafe?.user?.id
 
-    const text = [
-      `🏠 ${h.title}`,
-      h.price  > 0 ? `💰 ${priceStr(h.price)}` : '',
-      h.rooms  > 0 ? `🛏 ${h.rooms} xona` : '',
-      h.area   > 0 ? `📐 ${h.area} m²` : '',
-      h.floor  > 0 ? `🏢 ${h.floor}/${h.totalFloors||'?'}-qavat` : '',
-      h.district ? `📍 ${h.district}` : '',
-      `🆔 CRM #${h.id}`,
-      `📞 +998 91 551 44 99`,
-    ].filter(Boolean).join('\n')
-
-    const url = h.yandex_url || 'https://t.me/mulkinvestbot'
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
-
-    if (userId) {
-      // Fon: bot rasmli xabar yuboradi
-      fetch('/api/share-property', {
+    setShareToast('⏳ Yuborilmoqda...')
+    try {
+      const res = await fetch('/api/share-property', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId, crmId: h.id,
-          title: h.title, price: priceStr(h.price),
+          userId,
+          initData,
+          crmId: h.id,
+          title: h.title,
+          price: priceStr(h.price),
           rooms: h.rooms > 0 ? String(h.rooms) : '',
           area:  h.area  > 0 ? String(h.area)  : '',
-          floor: h.floor, totalFloors: h.totalFloors,
-          district: h.district, landmark: h.landmark,
-          jk: h.jk, yandex_url: h.yandex_url,
+          floor: h.floor,
+          totalFloors: h.totalFloors,
+          district: h.district,
+          landmark: h.landmark,
+          jk: h.jk,
+          yandex_url: h.yandex_url,
         }),
-      }).catch(() => {})
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setShareToast('✅ Chatingizga yuborildi!')
+      } else {
+        setShareToast('❌ ' + (data.error || 'Xato'))
+      }
+    } catch {
+      setShareToast('❌ Xato yuz berdi')
     }
-
-    // Hammaga: Telegram share dialog ochiladi
-    if (tgApp?.openTelegramLink) tgApp.openTelegramLink(shareUrl)
-    else window.open(shareUrl, '_blank')
+    setTimeout(() => setShareToast(null), 3000)
   }
 
   const callSeller = (crmId?: number) => {

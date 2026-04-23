@@ -34,12 +34,25 @@ async function getPhotos(crmId: string): Promise<PhotoEntry[]> {
 }
 
 // ── POST /api/share-property ──────────────────────────────────────────────────
+function parseInitData(initData: string): number | null {
+  try {
+    const params = new URLSearchParams(initData)
+    const userStr = params.get('user')
+    if (!userStr) return null
+    const user = JSON.parse(decodeURIComponent(userStr))
+    return user.id ?? null
+  } catch { return null }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { userId, crmId, title, price, rooms, area, floor, totalFloors,
+    const { userId: rawUserId, initData, crmId, title, price, rooms, area, floor, totalFloors,
             district, landmark, jk, yandex_url } = await req.json()
 
-    if (!userId || !crmId) return NextResponse.json({ ok: false, error: 'Missing params' })
+    // initData dan user ID olish (ishonchli usul)
+    const userId = rawUserId || (initData ? parseInitData(initData) : null)
+
+    if (!userId || !crmId) return NextResponse.json({ ok: false, error: 'Telegram ID topilmadi. Botga /start yuboring.' })
 
     const token = process.env.TELEGRAM_BOT_TOKEN
     if (!token) return NextResponse.json({ ok: false, error: 'No bot token' })
