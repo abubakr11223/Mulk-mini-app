@@ -416,37 +416,39 @@ export default function MapPage() {
     const initData = tgApp?.initData || ''
     const userId  = tgApp?.initDataUnsafe?.user?.id
 
-    setShareToast('⏳ Yuborilmoqda...')
-    try {
-      const res = await fetch('/api/share-property', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          initData,
-          crmId: h.id,
-          title: h.title,
-          price: priceStr(h.price),
-          rooms: h.rooms > 0 ? String(h.rooms) : '',
-          area:  h.area  > 0 ? String(h.area)  : '',
-          floor: h.floor,
-          totalFloors: h.totalFloors,
-          district: h.district,
-          landmark: h.landmark,
-          jk: h.jk,
-          yandex_url: h.yandex_url,
-        }),
-      })
-      const data = await res.json()
-      if (data.ok) {
-        setShareToast('✅ Chatingizga yuborildi!')
-      } else {
-        setShareToast('❌ ' + (data.error || 'Xato'))
+    if (userId || initData) {
+      // Mobil Telegram: bot to'g'ridan chatga yuboradi
+      setShareToast('⏳ Yuborilmoqda...')
+      try {
+        const res = await fetch('/api/share-property', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId, initData, crmId: h.id,
+            title: h.title, price: priceStr(h.price),
+            rooms: h.rooms > 0 ? String(h.rooms) : '',
+            area:  h.area  > 0 ? String(h.area)  : '',
+            floor: h.floor, totalFloors: h.totalFloors,
+            district: h.district, landmark: h.landmark,
+            jk: h.jk, yandex_url: h.yandex_url,
+          }),
+        })
+        const data = await res.json()
+        if (data.ok) {
+          setShareToast('✅ Chatingizga yuborildi!')
+        } else {
+          setShareToast('❌ ' + (data.error || 'Xato'))
+        }
+      } catch {
+        setShareToast('❌ Xato yuz berdi')
       }
-    } catch {
-      setShareToast('❌ Xato yuz berdi')
+      setTimeout(() => setShareToast(null), 3000)
+    } else {
+      // Mac Telegram: bot chatini ochib, rasm yuboradi
+      const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
+      if (tgApp?.openTelegramLink) tgApp.openTelegramLink(botLink)
+      else window.open(botLink, '_blank')
     }
-    setTimeout(() => setShareToast(null), 3000)
   }
 
   const callSeller = (crmId?: number) => {
