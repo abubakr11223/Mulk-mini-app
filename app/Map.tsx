@@ -468,19 +468,29 @@ export default function MapPage() {
                   const secAgo = Math.max(0, Math.floor((Date.now() - u.lastSeen) / 1000))
                   const timeStr = secAgo < 60 ? `${secAgo}s oldin` : `${Math.floor(secAgo/60)}m oldin`
                   const isAnon = String(u.id).startsWith('anon_')
-                  const tgLink = !isAnon ? `tg://user?id=${u.id}` : null
+                  const openChat = () => {
+                    if (isAnon) return
+                    const tg = (window as any).Telegram?.WebApp
+                    try {
+                      if (tg?.openTelegramLink) {
+                        tg.openTelegramLink(`https://t.me/${u.username || `user${u.id}`}`)
+                      } else {
+                        window.location.href = `tg://user?id=${u.id}`
+                      }
+                    } catch {}
+                  }
                   return (
                     <div key={u.id}
-                      onClick={() => tgLink && window.open(tgLink, '_blank')}
-                      className={`flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2.5 ${!isAnon ? 'cursor-pointer active:bg-slate-700' : ''}`}>
+                      onClick={openChat}
+                      className={`flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2.5 transition-colors ${!isAnon ? 'cursor-pointer active:bg-slate-700 hover:bg-slate-700' : 'opacity-70'}`}>
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{isAnon ? '👤' : '🙍‍♂️'}</span>
                         <div>
                           <p className="text-white text-sm font-medium">
-                            {isAnon ? 'Anonim' : (u.username || `User ${u.id}`)}
+                            {isAnon ? 'Anonim (Mac)' : (u.username ? `@${u.username}` : `User ${u.id}`)}
                           </p>
                           <p className="text-slate-400 text-xs">
-                            {isAnon ? `ID: ${u.id}` : `@${u.username || u.id} • bosib oching`}
+                            {isAnon ? 'Telegram ID yo\'q' : '💬 bosib chat oching'}
                           </p>
                         </div>
                       </div>
