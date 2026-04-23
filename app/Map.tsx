@@ -414,23 +414,14 @@ export default function MapPage() {
     const tg = (window as any).Telegram?.WebApp
     const userId = tg?.initDataUnsafe?.user?.id
     if (!userId) {
-      // Fallback: open t.me/share if no userId
-      const lines = [
-        `🏠 ${h.title}`,
-        `💰 ${priceStr(h.price)}`,
-        h.rooms ? `🛏 ${t.rooms_n(h.rooms)}` : '',
-        h.area  ? `📐 ${t.area_n(h.area)}` : '',
-        h.floor ? `🏢 ${t.floor_n(h.floor, h.totalFloors||'?')}` : '',
-        h.jk ? `🏗 ${h.jk}` : '',
-        h.district ? `📍 ${h.district}` : '',
-        h.landmark ? `🗺 ${h.landmark}` : '',
-        `🆔 CRM #${h.id}`,
-        ``,
-        `📞 +998 91 551 44 99`,
-        h.yandex_url ? `📌 ${h.yandex_url}` : '',
-      ].filter(Boolean).join('\n')
-      const url = h.yandex_url || `https://t.me/mulkinvestbot`
-      window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(lines)}`, '_blank')
+      // Fallback: bot orqali rasm + ma'lumot yuborish
+      const tgApp2 = (window as any).Telegram?.WebApp
+      const botLink = `https://t.me/mulkinvestbot?start=share_${h.id}`
+      if (tgApp2?.openTelegramLink) {
+        tgApp2.openTelegramLink(botLink)
+      } else {
+        window.open(botLink, '_blank')
+      }
       return
     }
     try {
