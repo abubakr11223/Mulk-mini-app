@@ -6,16 +6,22 @@ import { join } from 'path'
 const KV_URL   = (process.env.KV_REST_API_URL   || '').replace(/\/$/, '')
 const KV_TOKEN = process.env.KV_REST_API_TOKEN   || ''
 
-async function kvGet(key: string): Promise<string | null> {
-  if (!KV_URL || !KV_TOKEN) return null
+async function kvPipeline(commands: any[][]): Promise<any[]> {
+  if (!KV_URL || !KV_TOKEN) return []
   try {
-    const r = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
-      headers: { Authorization: `Bearer ${KV_TOKEN}` },
+    const r = await fetch(`${KV_URL}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(commands),
       cache: 'no-store',
     })
-    const j = await r.json()
-    return j.result ?? null
-  } catch { return null }
+    return await r.json()
+  } catch { return [] }
+}
+
+async function kvGet(key: string): Promise<string | null> {
+  const res = await kvPipeline([['get', key]])
+  return res[0]?.result ?? null
 }
 
 // ── Photo helpers ─────────────────────────────────────────────────────────────
@@ -34,7 +40,13 @@ function getPhotosFromFile(crmId: string): PhotoEntry[] {
 }
 
 async function getPhotos(crmId: string): Promise<PhotoEntry[]> {
-  // 1. KV dan olish (bot yuborgan yangi rasmlar)
+  // 1. Yangi format: Redis LIST (LRANGE)
+  const listRes = await kvPipeline([['lrange', `photolist:${crmId}`, 0, -1]])
+  const list: string[] = listRes[0]?.result ?? []
+  if (list.length > 0) {
+    return list.map(s => { try { return JSON.parse(s) } catch { return null } }).filter(Boolean) as PhotoEntry[]
+  }
+  // 2. Eski format: JSON array string (GET)
   const val = await kvGet(`photo:${crmId}`)
   if (val) {
     try {
@@ -42,7 +54,7 @@ async function getPhotos(crmId: string): Promise<PhotoEntry[]> {
       if (Array.isArray(arr) && arr.length > 0) return arr
     } catch {}
   }
-  // 2. Fallback: git'ga commit qilingan JSON fayl
+  // 3. Fallback: git'ga commit qilingan JSON fayl
   return getPhotosFromFile(crmId)
 }
 
