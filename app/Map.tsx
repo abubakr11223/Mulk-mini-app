@@ -181,6 +181,7 @@ export default function MapPage() {
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackSending, setFeedbackSending] = useState(false)
   const [feedbackSent, setFeedbackSent] = useState(false)
+  const [photoHasMap, setPhotoHasMap] = useState<Record<number,boolean>>({})
   const [editTarget, setEditTarget] = useState<House | null>(null)
   const [editData, setEditData] = useState<{priceOverride?:number;titleOverride?:string;isTop?:boolean;hidden?:boolean}>({})
   const [editSaving, setEditSaving] = useState(false)
@@ -189,9 +190,13 @@ export default function MapPage() {
   const t = T[lang]
   const filtered = applyFilters(houses, filters, search)
     .sort((a, b) => {
-      // Admin: yangi qo'shilganlar birinchi (updatedAt bo'yicha)
-      if (isAdmin) return (b.updatedAt || 0) - (a.updatedAt || 0)
-      // Oddiy foydalanuvchi: TOP birinchi
+      if (isAdmin) {
+        // Admin: rasmsiz uylar birinchi, keyin yangilar
+        const aHasPhoto = photoHasMap[a.id] ? 1 : 0
+        const bHasPhoto = photoHasMap[b.id] ? 1 : 0
+        if (aHasPhoto !== bHasPhoto) return aHasPhoto - bHasPhoto  // rasmsiz birinchi
+        return (b.updatedAt || 0) - (a.updatedAt || 0)
+      }
       return (b.isTop ? 1 : 0) - (a.isTop ? 1 : 0)
     })
   const fCount = Object.entries(filters).filter(([k,v]) => k==='type'?v!=='all':v!=='').length
@@ -736,8 +741,32 @@ export default function MapPage() {
       <div className="flex-1 relative" style={{minHeight:0}}>
 
         {/* MAP - always mounted, shown when map tab */}
-        <div className="absolute inset-0" style={{display: tab==='map'?'block':'none'}}>
-          <div ref={mapRef} style={{width:'100%',height:'100%'}}/>
+        <div className="absolute inset-0" style={{display: tab==='map'?'flex':'none', flexDirection:'column'}}>
+          {/* Xarita qidiruvchi */}
+          <div className="flex-shrink-0 px-3 py-2 bg-slate-900/90 backdrop-blur-sm z-10">
+            <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2">
+              <span className="text-slate-500"><IcSrch/></span>
+              <input type="search" placeholder={t.search} value={search}
+                onChange={e=>setSearch(e.target.value)}
+                className="bg-transparent flex-1 text-white placeholder-slate-500 outline-none text-sm"
+                style={{fontSize:'16px'}}/>
+              {search&&<button onClick={()=>setSearch('')} className="text-slate-500 hover:text-white"><IcX/></button>}
+            </div>
+            {/* Qidiruv natijalari */}
+            {search && (
+              <div className="mt-1 bg-slate-800 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+                {filtered.slice(0,8).map(h=>(
+                  <button key={h.id} onClick={()=>{openCard(h);setSearch('')}}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-700 border-b border-white/5 last:border-0">
+                    <p className="text-white text-xs font-medium truncate">{h.title}</p>
+                    <p className="text-slate-400 text-[10px]">{h.district} {h.price>0?`• $${(h.price/1000).toFixed(0)}k`:''}</p>
+                  </button>
+                ))}
+                {filtered.length===0&&<p className="text-slate-400 text-xs text-center py-3">{t.noResults}</p>}
+              </div>
+            )}
+          </div>
+          <div ref={mapRef} style={{flex:1}}/>
 
           {/* CARD ON MAP (bottom sheet, no dark overlay) */}
           {selected && tab==='map' && (
@@ -777,6 +806,7 @@ export default function MapPage() {
                   onImageClick={(crmId,count,idx)=>{ setLightbox({crmId,count,idx}); track('photo_view',{crmId}) }}
                   isAdmin={isAdmin}
                   onEdit={openEdit}
+                  onPhotoCheck={(id,has)=>setPhotoHasMap(prev=>({...prev,[id]:has}))}
                 />
               ))}
             </div>
@@ -1104,10 +1134,11 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
 // ────────────────────────────────────────────────────────────
 // GALLERY CARD
 // ────────────────────────────────────────────────────────────
-function GCard({h,t,onClick,onImageClick,onEdit,isAdmin}:{
+function GCard({h,t,onClick,onImageClick,onEdit,isAdmin,onPhotoCheck}:{
   h:House; t:typeof T['uz']; onClick:()=>void; isAdmin?:boolean
   onImageClick:(crmId:number,count:number,idx:number)=>void
   onEdit?:(h:House)=>void
+  onPhotoCheck?:(id:number, has:boolean)=>void
 }) {
   const [photoCount,setPhotoCount]=useState(1)
   const [curIdx,setCurIdx]=useState(0)
@@ -1134,8 +1165,11 @@ function GCard({h,t,onClick,onImageClick,onEdit,isAdmin}:{
   useEffect(()=>{
     fetch(`/api/photo/${h.id}?count=1`)
       .then(r=>r.json())
-      .then(d=>{ if(d.count>0) setPhotoCount(d.count) })
-      .catch(()=>{})
+      .then(d=>{
+        if(d.count>0) { setPhotoCount(d.count); onPhotoCheck?.(h.id, true) }
+        else onPhotoCheck?.(h.id, false)
+      })
+      .catch(()=>{ onPhotoCheck?.(h.id, false) })
   },[h.id])
 
   const prevPhoto=(e:React.TouchEvent|React.MouseEvent)=>{
