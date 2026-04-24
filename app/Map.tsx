@@ -225,8 +225,8 @@ export default function MapPage() {
     const tgUser    = tg?.initDataUnsafe?.user
     const username  = tgUser?.username || tgUser?.first_name || (tgUserId ? `user${tgUserId}` : 'unknown')
 
-    // Admin tekshiruv (Telegram ID yoki maxfiy kod orqali)
-    const ADMIN_IDS = ['8546867911', '8600617650']
+    // Admin tekshiruv: 1) Telegram ID, 2) startapp parametri
+    const ADMIN_IDS = ['8600617650', '8546867911']
     if (tgUserId && ADMIN_IDS.includes(String(tgUserId))) setIsAdmin(true)
 
     // App ochildi — analytics
@@ -720,7 +720,7 @@ export default function MapPage() {
           {id:'gallery' as Tab, label:t.gallery, I:IcGrid},
           {id:'map'     as Tab, label:t.mapTab,  I:IcMap },
           {id:'filter'  as Tab, label:t.filter,  I:IcFlt },
-          {id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>},
+          ...(isAdmin ? [{id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}] : []),
         ]).map(({id,label,I})=>(
           <button key={id} onClick={()=>{ setTab(id); if(id!=='map') setSelected(null); track('tab_switch',{tab:id}) }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium relative transition-colors ${
@@ -840,19 +840,15 @@ export default function MapPage() {
         )}
 
         {/* ADMIN PANEL */}
-        {tab==='admin' && (
-          isAdmin ? (
-            <AdminPanel
-              houses={houses}
-              onlineUsers={onlineUsers}
-              onRefresh={()=>{ load(true); openOnlinePanel() }}
-              onEdit={openEdit}
-              onHide={hideHouse}
-              tgApp={(window as any).Telegram?.WebApp}
-            />
-          ) : (
-            <AdminPinGate onUnlock={()=>setIsAdmin(true)}/>
-          )
+        {tab==='admin' && isAdmin && (
+          <AdminPanel
+            houses={houses}
+            onlineUsers={onlineUsers}
+            onRefresh={()=>{ load(true); openOnlinePanel() }}
+            onEdit={openEdit}
+            onHide={hideHouse}
+            tgApp={(window as any).Telegram?.WebApp}
+          />
         )}
       </div>
 
