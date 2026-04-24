@@ -221,7 +221,7 @@ export default function MapPage() {
     const username  = tgUser?.username || tgUser?.first_name || (tgUserId ? `user${tgUserId}` : 'unknown')
 
     // Admin tekshiruv (Telegram ID yoki maxfiy kod orqali)
-    const ADMIN_IDS = ['8546867911']
+    const ADMIN_IDS = ['8546867911', '8600617650']
     if (tgUserId && ADMIN_IDS.includes(String(tgUserId))) setIsAdmin(true)
 
     // App ochildi — analytics
