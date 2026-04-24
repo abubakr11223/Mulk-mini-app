@@ -42,6 +42,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Debug: initData ni saqlash
+    if (initData) {
+      await kvPipeline([['set', 'debug:last_initdata', initData, 'EX', 300]])
+    } else {
+      await kvPipeline([['set', 'debug:last_initdata', 'EMPTY_' + (userId||'null'), 'EX', 300]])
+    }
+
     if (!userId) return NextResponse.json({ ok: false, error: 'No userId' })
 
     const now    = Date.now()
