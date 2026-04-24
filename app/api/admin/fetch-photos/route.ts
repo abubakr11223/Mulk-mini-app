@@ -34,12 +34,21 @@ export async function GET(req: Request) {
   const batchSize = 20 // leads per request to avoid timeout
 
   try {
-    // Lidlarni olish (bir sahifa)
-    const leadsRes = await fetch(
-      `https://${subdomain}.amocrm.ru/api/v4/leads?limit=${batchSize}&page=${startPage}&filter%5Bpipeline_id%5D=${PIPELINE_ID}`,
-      { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' }
+    // Lidlarni olish — https module bilan (fetch() ba'zan ishlamaydi)
+    const https = await import('https')
+    const httpsGet = (host: string, path_: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        https.get({ hostname: host, path: path_, headers: { Authorization: `Bearer ${token}` } },
+          (r) => { let d=''; r.on('data',c=>d+=c); r.on('end',()=>resolve(d)) }
+        ).on('error', reject)
+      })
+    }
+
+    const leadsRaw = await httpsGet(
+      `${subdomain}.amocrm.ru`,
+      `/api/v4/leads?limit=${batchSize}&page=${startPage}&filter%5Bpipeline_id%5D=${PIPELINE_ID}`
     )
-    const leadsData = await leadsRes.json()
+    const leadsData = JSON.parse(leadsRaw)
     const leads: any[] = leadsData?._embedded?.leads || []
 
     if (leads.length === 0) {
@@ -53,11 +62,11 @@ export async function GET(req: Request) {
       const crmId = String(lead.id)
 
       // Notes/chat dan rasm URLlarini olish
-      const notesRes = await fetch(
-        `https://${subdomain}.amocrm.ru/api/v4/leads/${lead.id}/notes?limit=50`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' }
+      const notesRaw = await httpsGet(
+        `${subdomain}.amocrm.ru`,
+        `/api/v4/leads/${lead.id}/notes?limit=50`
       )
-      const notesData = await notesRes.json()
+      const notesData = JSON.parse(notesRaw)
       const notes: any[] = notesData?._embedded?.notes || []
 
       const allUrls: string[] = []
