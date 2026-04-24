@@ -690,24 +690,14 @@ export default function MapPage() {
               <span className="text-xs font-semibold text-white">{onlineCount!==null?onlineCount:'—'}</span>
             </button>
           )}
-          {/* Savol tugmasi — 3 marta tez bossangiz admin mode */}
+          {/* Admin mode: logo 5 marta yoki bu hidden area 3 marta */}
           {!isAdmin && (
-            <button
-              onClick={() => {
-                adminTapRef.current += 1
-                clearTimeout(adminTapTimer.current)
-                if (adminTapRef.current >= 3) {
-                  setIsAdmin(true)
-                  setTab('admin' as any)
-                  adminTapRef.current = 0
-                } else {
-                  setShowFeedback(true)
-                  adminTapTimer.current = setTimeout(() => { adminTapRef.current = 0 }, 2000)
-                }
-              }}
-              className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold text-white transition-colors">
-              💬 {t.askBtn}
-            </button>
+            <div style={{width:40,height:28}} onClick={()=>{
+              adminTapRef.current+=1
+              clearTimeout(adminTapTimer.current)
+              if(adminTapRef.current>=3){setIsAdmin(true);setTab('admin' as any);adminTapRef.current=0}
+              else adminTapTimer.current=setTimeout(()=>{adminTapRef.current=0},2000)
+            }}/>
           )}
           <button onClick={cycleLang}
             className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold tracking-wide transition-colors">
@@ -725,7 +715,7 @@ export default function MapPage() {
           {id:'gallery' as Tab, label:t.gallery, I:IcGrid},
           {id:'map'     as Tab, label:t.mapTab,  I:IcMap },
           {id:'filter'  as Tab, label:t.filter,  I:IcFlt },
-          {id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>},
+          ...(isAdmin ? [{id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}] : []),
         ]).map(({id,label,I})=>(
           <button key={id} onClick={()=>{ setTab(id); if(id!=='map') setSelected(null); track('tab_switch',{tab:id}) }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium relative transition-colors ${
@@ -820,29 +810,15 @@ export default function MapPage() {
         )}
 
         {/* ADMIN PANEL */}
-        {tab==='admin' && (
-          isAdmin ? (
-            <AdminPanel
-              houses={houses}
-              onlineUsers={onlineUsers}
-              onRefresh={()=>{ load(true); openOnlinePanel() }}
-              onEdit={openEdit}
-              onHide={hideHouse}
-              tgApp={(window as any).Telegram?.WebApp}
-            />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 gap-4 p-6">
-              <p className="text-4xl">🔐</p>
-              <p className="text-white font-bold text-lg">Admin kirish</p>
-              <p className="text-slate-400 text-sm text-center">
-                "💬 Savol" tugmasiga <b className="text-white">3 marta tez</b> bosing
-              </p>
-              <button onClick={()=>setTab('gallery' as Tab)}
-                className="mt-2 px-6 py-2 bg-slate-800 rounded-xl text-slate-300 text-sm">
-                ← Orqaga
-              </button>
-            </div>
-          )
+        {tab==='admin' && isAdmin && (
+          <AdminPanel
+            houses={houses}
+            onlineUsers={onlineUsers}
+            onRefresh={()=>{ load(true); openOnlinePanel() }}
+            onEdit={openEdit}
+            onHide={hideHouse}
+            tgApp={(window as any).Telegram?.WebApp}
+          />
         )}
       </div>
 
