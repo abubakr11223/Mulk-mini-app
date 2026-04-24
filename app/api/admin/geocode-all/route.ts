@@ -33,12 +33,29 @@ async function geocode(query: string): Promise<{lat:number;lng:number} | null> {
   return null
 }
 
+const DISTRICT_MAP: Record<string, string> = {
+  'юнусабад': 'Yunusobod', 'алмазар': 'Olmazor', 'чиланзар': 'Chilonzor',
+  'мирабад': 'Mirobod', 'яккасарай': 'Yakkasaroy', 'сергели': 'Sergeli',
+  'учтепа': 'Uchtepa', 'бектемир': 'Bektemir', 'мирзо-улугбек': 'Mirzo Ulugbek',
+  'шайхантахур': 'Shayxontohur', 'яшнабад': 'Yashnobod', 'ускюдар': 'Uskudar',
+  'зангиата': 'Zangiota', 'карасу': 'Qorasув',
+}
+
 function cleanTitle(title: string): string {
   return title
-    .replace(/Facebook №\d+/g, '')
-    .replace(/^(в|на|ул\.|улица|жк|в ЖК|на ул\.)\s*/i, '')
+    .replace(/Facebook №\d+/gi, '')
+    .replace(/^(в\s+ЖК|на\s+ул\.|в\s+жк|ЖК|жк)\s*/i, '')
     .replace(/['"«»""]/g, '')
+    .replace(/\s+/g, ' ')
     .trim()
+}
+
+function districtEn(district: string): string {
+  const lower = district.toLowerCase()
+  for (const [ru, en] of Object.entries(DISTRICT_MAP)) {
+    if (lower.includes(ru)) return en
+  }
+  return district
 }
 
 export async function GET() {
@@ -55,12 +72,14 @@ export async function GET() {
       const district = h.district || ''
       const landmark = h.landmark || ''
 
+      const districtEng = districtEn(district)
       const queries = [
-        `${name} Tashkent ${district}`.trim(),
-        `${name} Tashkent`.trim(),
-        `${landmark} Tashkent ${district}`.trim(),
-        `${district} Tashkent`.trim(),
-      ].filter(q => q.length > 5)
+        `${name} Tashkent ${districtEng}`,
+        `${name} Toshkent`,
+        landmark ? `${landmark} Tashkent` : '',
+        `${districtEng} Tashkent`,
+        `${districtEng} Toshkent`,
+      ].filter(q => q.trim().length > 5).map(q => q.trim())
 
       for (const q of queries) {
         const coords = await geocode(q)
