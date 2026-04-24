@@ -725,7 +725,7 @@ export default function MapPage() {
           {id:'gallery' as Tab, label:t.gallery, I:IcGrid},
           {id:'map'     as Tab, label:t.mapTab,  I:IcMap },
           {id:'filter'  as Tab, label:t.filter,  I:IcFlt },
-          ...(isAdmin ? [{id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}] : []),
+          {id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>},
         ]).map(({id,label,I})=>(
           <button key={id} onClick={()=>{ setTab(id); if(id!=='map') setSelected(null); track('tab_switch',{tab:id}) }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium relative transition-colors ${
@@ -820,15 +820,29 @@ export default function MapPage() {
         )}
 
         {/* ADMIN PANEL */}
-        {tab==='admin' && isAdmin && (
-          <AdminPanel
-            houses={houses}
-            onlineUsers={onlineUsers}
-            onRefresh={()=>{ load(true); openOnlinePanel() }}
-            onEdit={openEdit}
-            onHide={hideHouse}
-            tgApp={(window as any).Telegram?.WebApp}
-          />
+        {tab==='admin' && (
+          isAdmin ? (
+            <AdminPanel
+              houses={houses}
+              onlineUsers={onlineUsers}
+              onRefresh={()=>{ load(true); openOnlinePanel() }}
+              onEdit={openEdit}
+              onHide={hideHouse}
+              tgApp={(window as any).Telegram?.WebApp}
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 gap-4 p-6">
+              <p className="text-4xl">🔐</p>
+              <p className="text-white font-bold text-lg">Admin kirish</p>
+              <p className="text-slate-400 text-sm text-center">
+                "💬 Savol" tugmasiga <b className="text-white">3 marta tez</b> bosing
+              </p>
+              <button onClick={()=>setTab('gallery' as Tab)}
+                className="mt-2 px-6 py-2 bg-slate-800 rounded-xl text-slate-300 text-sm">
+                ← Orqaga
+              </button>
+            </div>
+          )
         )}
       </div>
 
@@ -1290,7 +1304,10 @@ function AdminPanel({houses,onlineUsers,onRefresh,onEdit,onHide,tgApp}:{
     const isAnon = String(u.id).startsWith('anon_')
     if (isAnon) return
     try {
-      const link = `https://t.me/${u.username || `user${u.id}`}`
+      // Username bo'lsa @username orqali, bo'lmasa ID orqali
+      const link = u.username && u.username !== 'unknown'
+        ? `https://t.me/${u.username}`
+        : `tg://user?id=${u.id}`
       if (tgApp?.openTelegramLink) tgApp.openTelegramLink(link)
       else window.open(link, '_blank')
     } catch {}
