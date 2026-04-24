@@ -25,7 +25,7 @@ async function kvGet(key: string): Promise<string | null> {
 }
 
 // ── Photo helpers ─────────────────────────────────────────────────────────────
-type PhotoEntry = { file_id: string; file_unique_id: string }
+type PhotoEntry = { file_id?: string; file_unique_id?: string; url?: string }
 
 function getPhotosFromFile(crmId: string): PhotoEntry[] {
   try {
@@ -54,7 +54,15 @@ async function getPhotos(crmId: string): Promise<PhotoEntry[]> {
       if (Array.isArray(arr) && arr.length > 0) return arr
     } catch {}
   }
-  // 3. Fallback: git'ga commit qilingan JSON fayl
+  // 3. CRM chatidan kelgan OLX URL lar
+  const urlsVal = await kvGet(`photo_urls:${crmId}`)
+  if (urlsVal) {
+    try {
+      const urls: string[] = JSON.parse(urlsVal)
+      if (urls.length > 0) return urls.map(u => ({ url: u, file_unique_id: u }))
+    } catch {}
+  }
+  // 4. Fallback: git'ga commit qilingan JSON fayl
   return getPhotosFromFile(crmId)
 }
 
@@ -77,6 +85,12 @@ export async function GET(
     // ?index=N → N-rasm (default: 0)
     const idx   = Math.max(0, parseInt(req.nextUrl.searchParams.get('index') || '0', 10))
     const photo = photos[Math.min(idx, photos.length - 1)]
+
+    // OLX yoki boshqa to'g'ridan URL bo'lsa — redirect
+    if (photo?.url && !photo?.file_id) {
+      return NextResponse.redirect(photo.url, { status: 302 })
+    }
+
     if (!photo?.file_id) return new NextResponse(null, { status: 404 })
 
     const token = process.env.TELEGRAM_BOT_TOKEN
