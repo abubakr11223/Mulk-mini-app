@@ -817,35 +817,14 @@ export default function MapPage() {
 
         {/* ADMIN PANEL */}
         {tab==='admin' && isAdmin && (
-          <div className="absolute inset-0 overflow-y-auto bg-slate-950">
-            <div className="p-3 space-y-2">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-white font-bold text-sm">🛠 Admin Panel ({houses.length} ta uy)</p>
-                <button onClick={()=>load(true)} className="text-blue-400 text-xs px-3 py-1 bg-slate-800 rounded-lg">↺ Yangilash</button>
-              </div>
-              {[...houses].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).map(h => (
-                <div key={h.id} className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5 border border-white/5">
-                  {/* Mini rasm */}
-                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/photo/${h.id}`} alt="" className="w-full h-full object-cover"
-                      onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
-                  </div>
-                  {/* Ma'lumot */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-semibold truncate">{h.title}</p>
-                    <p className="text-slate-400 text-[10px]">{h.price>0?priceStr(h.price):''} {h.district?`• ${h.district}`:''}</p>
-                    <p className="text-slate-500 text-[9px]">CRM #{h.id} {h.isTop?'• ⭐TOP':''}</p>
-                  </div>
-                  {/* Edit tugmasi */}
-                  <button onClick={()=>openEdit(h)}
-                    className="flex-shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded-lg transition-colors font-medium">
-                    ✏️ Edit
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <AdminPanel
+            houses={houses}
+            onlineUsers={onlineUsers}
+            onRefresh={()=>{ load(true); openOnlinePanel() }}
+            onEdit={openEdit}
+            onHide={hideHouse}
+            tgApp={(window as any).Telegram?.WebApp}
+          />
         )}
       </div>
 
@@ -1290,6 +1269,108 @@ function IRow({l,v}:{l:string;v:string}) {
 // ────────────────────────────────────────────────────────────
 // FILTER PANEL
 // ────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────
+// ADMIN PANEL
+// ────────────────────────────────────────────────────────────
+function AdminPanel({houses,onlineUsers,onRefresh,onEdit,onHide,tgApp}:{
+  houses:House[]
+  onlineUsers:{id:string;username:string;lastSeen:number}[]
+  onRefresh:()=>void
+  onEdit:(h:House)=>void
+  onHide:(h:House)=>void
+  tgApp:any
+}) {
+  const [section, setSection] = useState<'users'|'houses'>('users')
+
+  const openUserChat = (u:{id:string;username:string}) => {
+    const isAnon = String(u.id).startsWith('anon_')
+    if (isAnon) return
+    try {
+      const link = `https://t.me/${u.username || `user${u.id}`}`
+      if (tgApp?.openTelegramLink) tgApp.openTelegramLink(link)
+      else window.open(link, '_blank')
+    } catch {}
+  }
+
+  return (
+    <div className="absolute inset-0 flex flex-col bg-slate-950">
+      {/* Section toggle */}
+      <div className="flex gap-1 p-2 flex-shrink-0">
+        <button onClick={()=>setSection('users')}
+          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${section==='users'?'bg-blue-600 text-white':'bg-slate-800 text-slate-400'}`}>
+          👥 Online ({onlineUsers.length})
+        </button>
+        <button onClick={()=>setSection('houses')}
+          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${section==='houses'?'bg-blue-600 text-white':'bg-slate-800 text-slate-400'}`}>
+          🏠 Uylar ({houses.length})
+        </button>
+        <button onClick={onRefresh} className="px-3 py-2 bg-slate-800 rounded-xl text-slate-400 text-xs">↺</button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-2">
+
+        {/* ONLINE USERS */}
+        {section==='users' && (
+          onlineUsers.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-8">Hozir hech kim online emas</p>
+          ) : onlineUsers.map(u => {
+            const isAnon = String(u.id).startsWith('anon_')
+            const secAgo = Math.max(0, Math.floor((Date.now()-u.lastSeen)/1000))
+            const timeStr = secAgo<60?`${secAgo}s`:`${Math.floor(secAgo/60)}m`
+            return (
+              <div key={u.id} onClick={()=>openUserChat(u)}
+                className={`flex items-center gap-3 bg-slate-800 rounded-xl px-3 py-2.5 ${!isAnon?'cursor-pointer active:bg-slate-700':''}`}>
+                <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-lg flex-shrink-0">
+                  {isAnon ? '👤' : '🙍'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium truncate">
+                    {isAnon ? 'Anonim' : (u.username ? `@${u.username}` : `User ${u.id}`)}
+                  </p>
+                  <p className="text-slate-400 text-xs">{isAnon ? 'Mac Telegram' : '💬 Bosib chat oching'}</p>
+                </div>
+                <span className="text-xs text-green-400 flex-shrink-0">{timeStr} oldin</span>
+              </div>
+            )
+          })
+        )}
+
+        {/* HOUSES WITH INLINE EDIT */}
+        {section==='houses' && [...houses].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).map(h => (
+          <div key={h.id} className="bg-slate-800 rounded-xl overflow-hidden border border-white/5">
+            <div className="flex items-center gap-2 px-3 py-2">
+              {/* Mini rasm */}
+              <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/photo/${h.id}`} alt="" className="w-full h-full object-cover"
+                  onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
+              </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-xs font-semibold truncate">{h.title}</p>
+                <p className="text-slate-400 text-[10px]">{h.price>0?`$${(h.price/1000).toFixed(0)}k`:''} {h.district?`• ${h.district}`:''}</p>
+                <p className="text-slate-500 text-[9px]">#{h.id} {h.isTop?'⭐':''}</p>
+              </div>
+              {/* Actions */}
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={()=>onEdit(h)}
+                  className="bg-blue-600 text-white text-[10px] px-2 py-1.5 rounded-lg font-medium">
+                  ✏️
+                </button>
+                <button onClick={()=>onHide(h)}
+                  className="bg-red-600 text-white text-[10px] px-2 py-1.5 rounded-lg font-medium">
+                  🚫
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
+      </div>
+    </div>
+  )
+}
+
 function FPanel({f,setF,t,onApply,onReset}:{
   f:Filters; setF:React.Dispatch<React.SetStateAction<Filters>>
   t:typeof T['uz']; onApply:()=>void; onReset:()=>void
