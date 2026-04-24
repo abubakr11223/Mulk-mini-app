@@ -34,22 +34,24 @@ export async function GET(req: Request) {
   const batchSize = 20 // leads per request to avoid timeout
 
   try {
-    // Lidlarni olish — https module bilan (fetch() ba'zan ishlamaydi)
+    // Redis cache dan lead ID larini olish
+    const cacheRes = await kvPipeline([['get', 'cache:amo-leads']])
+    const allHouses: any[] = JSON.parse(cacheRes[0]?.result || '[]')
+    if (!allHouses.length) return NextResponse.json({ ok: false, error: 'Cache bo\'sh. Avval amo-leads?force=1 qiling' })
+
+    // Batch bo'lib ishlash
+    const start = (startPage - 1) * batchSize
+    const leads = allHouses.slice(start, start + batchSize).map(h => ({ id: h.id }))
+
+    // https module bilan notes fetch
     const https = await import('https')
-    const httpsGet = (host: string, path_: string): Promise<string> => {
+    const httpsGet = (path_: string): Promise<string> => {
       return new Promise((resolve, reject) => {
-        https.get({ hostname: host, path: path_, headers: { Authorization: `Bearer ${token}` } },
-          (r) => { let d=''; r.on('data',c=>d+=c); r.on('end',()=>resolve(d)) }
+        https.get({ hostname: `${subdomain}.amocrm.ru`, path: path_, headers: { Authorization: `Bearer ${token}` } },
+          (r: any) => { let d=''; r.on('data',(c:any)=>d+=c); r.on('end',()=>resolve(d)) }
         ).on('error', reject)
       })
     }
-
-    const leadsRaw = await httpsGet(
-      `${subdomain}.amocrm.ru`,
-      `/api/v4/leads?limit=${batchSize}&page=${startPage}&filter%5Bpipeline_id%5D=${PIPELINE_ID}`
-    )
-    const leadsData = JSON.parse(leadsRaw)
-    const leads: any[] = leadsData?._embedded?.leads || []
 
     if (leads.length === 0) {
       return NextResponse.json({ ok: true, done: true, processed: 0 })
@@ -62,12 +64,10 @@ export async function GET(req: Request) {
       const crmId = String(lead.id)
 
       // Notes/chat dan rasm URLlarini olish
-      const notesRaw = await httpsGet(
-        `${subdomain}.amocrm.ru`,
-        `/api/v4/leads/${lead.id}/notes?limit=50`
-      )
-      const notesData = JSON.parse(notesRaw)
-      const notes: any[] = notesData?._embedded?.notes || []
+      try {
+        const notesRaw = await httpsGet(`/api/v4/leads/${lead.id}/notes?limit=50`)
+        const notesData = JSON.parse(notesRaw)
+        const notes: any[] = notesData?._embedded?.notes || []
 
       const allUrls: string[] = []
       for (const note of notes) {
@@ -75,23 +75,28 @@ export async function GET(req: Request) {
         allUrls.push(...extractImageUrls(text))
       }
 
-      if (allUrls.length > 0) {
-        cmds.push(['set', `photo_urls:${crmId}`, JSON.stringify([...new Set(allUrls)]), 'EX', 60*60*24*365])
-        found++
-      }
+        if (allUrls.length > 0) {
+          cmds.push(['set', `photo_urls:${crmId}`, JSON.stringify([...new Set(allUrls)]), 'EX', 60*60*24*365])
+          found++
+        }
+      } catch {} // skip failed notes
     }
 
     if (cmds.length > 0) {
       await kvPipeline(cmds)
     }
 
+    const total = allHouses.length
+    const done = start + leads.length >= total
+
     return NextResponse.json({
       ok: true,
       page: startPage,
       processed: leads.length,
       found,
-      nextPage: leads.length === batchSize ? startPage + 1 : null,
-      done: leads.length < batchSize,
+      total,
+      nextPage: done ? null : startPage + 1,
+      done,
     })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 })
