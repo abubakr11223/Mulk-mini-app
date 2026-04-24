@@ -525,8 +525,17 @@ export default function MapPage() {
   const callSeller = (crmId?: number) => {
     track('call_click', { crmId })
     const tg = (window as any).Telegram?.WebApp
-    if (tg?.openLink) tg.openLink('tel:+998915514499')
-    else window.open('tel:+998915514499')
+    const phone = '+998915514499'
+    if (tg?.showConfirm) {
+      tg.showConfirm(`📞 ${phone} ga qo'ng'iroq qilasizmi?`, (ok: boolean) => {
+        if (ok) {
+          if (tg?.openLink) tg.openLink(`tel:${phone}`)
+          else window.open(`tel:${phone}`)
+        }
+      })
+    } else if (window.confirm(`📞 ${phone} ga qo'ng'iroq qilasizmi?`)) {
+      window.open(`tel:${phone}`)
+    }
   }
   const cycleLang = () => setLang(l => l==='uz'?'ru':l==='ru'?'en':'uz')
 

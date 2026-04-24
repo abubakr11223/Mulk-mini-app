@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const token = process.env.TELEGRAM_BOT_TOKEN
     if (!token) return NextResponse.json({ ok: false, error: 'No bot token' })
 
-    // Xabar matni — URL ichida YO'Q (faqat inline button sifatida)
+    // Xabar matni — URL ham ichida
     const lines = [
       `🏠 <b>${title || `#${crmId}`}</b>`,
       price    ? `💰 ${price}` : '',
@@ -68,14 +68,12 @@ export async function POST(req: NextRequest) {
       district ? `📍 ${district}` : '',
       landmark ? `🗺 ${landmark}` : '',
       `🆔 CRM #${crmId}`,
+      yandex_url ? `🗺 <a href="${yandex_url}">Xaritada ko'rish</a>` : '',
       ``,
       `📞 <b>+998 91 551 44 99</b>`,
-    ].filter(s => s !== undefined && s !== null).join('\n')
+    ].filter(Boolean).join('\n')
 
-    // Xarita — 1 ta button sifatida (matn ichida link yo'q = preview chiqmaydi)
-    const replyMarkup = yandex_url ? {
-      inline_keyboard: [[{ text: "📍 Xaritada ko'rish", url: yandex_url }]]
-    } : undefined
+    const replyMarkup = undefined  // URL matn ichida, alohida button kerak emas
 
     const photos = await getPhotos(String(crmId))
 
@@ -117,18 +115,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: userId, media }),
       })
-      // Rasmlardan keyin xarita tugmasini alohida yuborish
-      if (replyMarkup) {
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: userId,
-            text: "📍 Lokatsiya:",
-            reply_markup: replyMarkup,
-          }),
-        })
-      }
+      // Alohida lokatsiya xabari kerak emas — URL caption ichida
     }
 
     return NextResponse.json({ ok: true })
