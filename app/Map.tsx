@@ -225,9 +225,31 @@ export default function MapPage() {
     const tgUser    = tg?.initDataUnsafe?.user
     const username  = tgUser?.username || tgUser?.first_name || (tgUserId ? `user${tgUserId}` : 'unknown')
 
-    // Admin tekshiruv: 1) Telegram ID, 2) startapp parametri
-    const ADMIN_IDS = ['8600617650', '8546867911']
-    if (tgUserId && ADMIN_IDS.includes(String(tgUserId))) setIsAdmin(true)
+    // Debug: initData borligini tekshir
+    const initData = tg?.initData || ''
+    const rawUser = tg?.initDataUnsafe?.user
+    console.log('TG initData:', initData?.substring(0,100))
+    console.log('TG user:', JSON.stringify(rawUser))
+    console.log('TG userId:', tgUserId)
+
+    // Admin tekshiruv
+    const ADMIN_IDS = ['8669371925', '8546867911', '8600617650']
+    if (tgUserId && ADMIN_IDS.includes(String(tgUserId))) {
+      setIsAdmin(true)
+    } else if (initData) {
+      // initData dan user ID ni parse qilamiz
+      try {
+        const params = new URLSearchParams(initData)
+        const userStr = params.get('user')
+        if (userStr) {
+          const parsedUser = JSON.parse(decodeURIComponent(userStr))
+          console.log('Parsed user from initData:', parsedUser)
+          if (parsedUser?.id && ADMIN_IDS.includes(String(parsedUser.id))) {
+            setIsAdmin(true)
+          }
+        }
+      } catch {}
+    }
 
     // App ochildi — analytics
     track('app_open')
