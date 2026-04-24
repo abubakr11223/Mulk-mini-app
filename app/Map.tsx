@@ -506,14 +506,20 @@ export default function MapPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        setShareToast('✅ Chatingizga yuborildi!')
+        setShareToast('✅ Yuborildi! Bot chatidan forward qiling')
+        // Bot chatini ochib, user u yerdan forward qiladi
+        setTimeout(() => {
+          setShareToast(null)
+          if (tgApp?.openTelegramLink) tgApp.openTelegramLink('https://t.me/mulkinvestbot')
+        }, 2000)
       } else {
         setShareToast('❌ ' + (data.error || 'Xato'))
+        setTimeout(() => setShareToast(null), 3000)
       }
     } catch {
       setShareToast('❌ Xato yuz berdi')
+      setTimeout(() => setShareToast(null), 2000)
     }
-    setTimeout(() => setShareToast(null), 3000)
   }
 
   const callSeller = (crmId?: number) => {
