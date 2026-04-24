@@ -720,7 +720,7 @@ export default function MapPage() {
           {id:'gallery' as Tab, label:t.gallery, I:IcGrid},
           {id:'map'     as Tab, label:t.mapTab,  I:IcMap },
           {id:'filter'  as Tab, label:t.filter,  I:IcFlt },
-          ...(isAdmin ? [{id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}] : []),
+          {id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>},
         ]).map(({id,label,I})=>(
           <button key={id} onClick={()=>{ setTab(id); if(id!=='map') setSelected(null); track('tab_switch',{tab:id}) }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium relative transition-colors ${
@@ -840,15 +840,19 @@ export default function MapPage() {
         )}
 
         {/* ADMIN PANEL */}
-        {tab==='admin' && isAdmin && (
-          <AdminPanel
-            houses={houses}
-            onlineUsers={onlineUsers}
-            onRefresh={()=>{ load(true); openOnlinePanel() }}
-            onEdit={openEdit}
-            onHide={hideHouse}
-            tgApp={(window as any).Telegram?.WebApp}
-          />
+        {tab==='admin' && (
+          isAdmin ? (
+            <AdminPanel
+              houses={houses}
+              onlineUsers={onlineUsers}
+              onRefresh={()=>{ load(true); openOnlinePanel() }}
+              onEdit={openEdit}
+              onHide={hideHouse}
+              tgApp={(window as any).Telegram?.WebApp}
+            />
+          ) : (
+            <AdminPinGate onUnlock={()=>setIsAdmin(true)}/>
+          )
         )}
       </div>
 
@@ -1300,6 +1304,36 @@ function IRow({l,v}:{l:string;v:string}) {
 // ────────────────────────────────────────────────────────────
 // ADMIN PANEL
 // ────────────────────────────────────────────────────────────
+function AdminPinGate({onUnlock}:{onUnlock:()=>void}) {
+  const [pin, setPin] = useState('')
+  const [err, setErr] = useState(false)
+  const ADMIN_PIN = '1234'  // PIN ni o'zgartiring
+  const check = () => {
+    if (pin === ADMIN_PIN) { onUnlock() }
+    else { setErr(true); setPin(''); setTimeout(()=>setErr(false), 1500) }
+  }
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 gap-5 p-6">
+      <p className="text-4xl">🔐</p>
+      <p className="text-white font-bold text-lg">Admin kirish</p>
+      <input
+        type="password" inputMode="numeric" maxLength={6}
+        value={pin} onChange={e=>setPin(e.target.value)}
+        onKeyDown={e=>e.key==='Enter'&&check()}
+        placeholder="PIN kod"
+        className={`w-48 text-center bg-slate-800 border ${err?'border-red-500':'border-white/20'} rounded-xl px-4 py-3 text-white text-xl tracking-widest outline-none focus:border-blue-500`}
+        style={{fontSize:'20px'}}
+        autoFocus
+      />
+      {err && <p className="text-red-400 text-sm">PIN noto'g'ri</p>}
+      <button onClick={check}
+        className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl text-white font-bold transition-colors">
+        Kirish
+      </button>
+    </div>
+  )
+}
+
 function AdminPanel({houses,onlineUsers,onRefresh,onEdit,onHide,tgApp}:{
   houses:House[]
   onlineUsers:{id:string;username:string;lastSeen:number}[]
