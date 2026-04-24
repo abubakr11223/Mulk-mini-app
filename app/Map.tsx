@@ -1289,8 +1289,8 @@ function GCard({h,t,onClick,onImageClick,onEdit,isAdmin,onPhotoCheck}:{
       {isAdmin && (
         <button
           onClick={e => { e.stopPropagation(); onEdit?.(h) }}
-          className="absolute top-2.5 right-2.5 bg-black/60 text-white text-xs px-2 py-1 rounded-lg z-10 flex items-center gap-1">
-          ✏️
+          style={{position:'absolute', top:8, left:8, zIndex:20, background:'rgba(37,99,235,0.9)', color:'#fff', border:'none', borderRadius:8, padding:'4px 10px', fontSize:12, fontWeight:700, cursor:'pointer'}}>
+          ✏️ Edit
         </button>
       )}
 
