@@ -92,7 +92,7 @@ const EMPTY: Filters = {
   floorsMin: '', floorsMax: '', floorMin: '', floorMax: '', priceMin: '', priceMax: '',
 }
 
-type Tab = 'gallery' | 'map' | 'filter'
+type Tab = 'gallery' | 'map' | 'filter' | 'admin'
 const ZOOM_DOT = 9
 const ZOOM_LABEL = 14
 
@@ -721,6 +721,7 @@ export default function MapPage() {
           {id:'gallery' as Tab, label:t.gallery, I:IcGrid},
           {id:'map'     as Tab, label:t.mapTab,  I:IcMap },
           {id:'filter'  as Tab, label:t.filter,  I:IcFlt },
+          ...(isAdmin ? [{id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}] : []),
         ]).map(({id,label,I})=>(
           <button key={id} onClick={()=>{ setTab(id); if(id!=='map') setSelected(null); track('tab_switch',{tab:id}) }}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium relative transition-colors ${
@@ -812,6 +813,39 @@ export default function MapPage() {
               })
             }}
             onReset={()=>{setFilters(EMPTY);boundsSet.current=false}}/>
+        )}
+
+        {/* ADMIN PANEL */}
+        {tab==='admin' && isAdmin && (
+          <div className="absolute inset-0 overflow-y-auto bg-slate-950">
+            <div className="p-3 space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-white font-bold text-sm">🛠 Admin Panel ({houses.length} ta uy)</p>
+                <button onClick={()=>load(true)} className="text-blue-400 text-xs px-3 py-1 bg-slate-800 rounded-lg">↺ Yangilash</button>
+              </div>
+              {[...houses].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).map(h => (
+                <div key={h.id} className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5 border border-white/5">
+                  {/* Mini rasm */}
+                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/photo/${h.id}`} alt="" className="w-full h-full object-cover"
+                      onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
+                  </div>
+                  {/* Ma'lumot */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-xs font-semibold truncate">{h.title}</p>
+                    <p className="text-slate-400 text-[10px]">{h.price>0?priceStr(h.price):''} {h.district?`• ${h.district}`:''}</p>
+                    <p className="text-slate-500 text-[9px]">CRM #{h.id} {h.isTop?'• ⭐TOP':''}</p>
+                  </div>
+                  {/* Edit tugmasi */}
+                  <button onClick={()=>openEdit(h)}
+                    className="flex-shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded-lg transition-colors font-medium">
+                    ✏️ Edit
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
