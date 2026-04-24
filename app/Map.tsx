@@ -817,6 +817,7 @@ export default function MapPage() {
               onShare={()=>shareHouse(selected)}
               onCall={callSeller}
               onOpenLightbox={(crmId,count,idx)=>setLightbox({crmId,count,idx})}
+              isAdmin={isAdmin} onEdit={openEdit}
             />
           )}
         </div>
@@ -1044,9 +1045,10 @@ function PhotoCarousel({ crmId, onOpen }: { crmId: number; onOpen:(count:number,
   )
 }
 
-function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
+function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox,isAdmin,onEdit}:{
   house:House; t:typeof T['uz']; onClose:()=>void; onShare:()=>void; onCall:()=>void
   onOpenLightbox:(crmId:number,count:number,idx:number)=>void
+  isAdmin?:boolean; onEdit?:(h:House)=>void
 }) {
   const sheetRef  = useRef<HTMLDivElement>(null)
   const startY    = useRef(0)
@@ -1157,7 +1159,13 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox}:{
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-2.5 px-4 pt-2 pb-5 border-t border-white/8 flex-shrink-0">
+        <div className="flex gap-2 px-4 pt-2 pb-5 border-t border-white/8 flex-shrink-0">
+          {isAdmin && (
+            <button onClick={()=>onEdit?.(h)}
+              className="flex items-center justify-center gap-1 px-3 py-3.5 bg-blue-700 hover:bg-blue-600 rounded-2xl text-sm font-semibold transition-colors">
+              ✏️
+            </button>
+          )}
           <button onClick={onShare}
             className="flex-1 flex items-center justify-center gap-1.5 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">
             <IcShare/>{t.share}
