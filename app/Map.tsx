@@ -682,25 +682,29 @@ export default function MapPage() {
           <p className="text-xs text-slate-400">{t.objects(filtered.length)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Online counter — faqat admin ko'radi */}
+          {/* Admin: online counter → Admin tabga o'tish */}
           {isAdmin && (
-            <button onClick={openOnlinePanel}
+            <button onClick={() => setTab('admin' as any)}
               className="flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
-              <span style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: onlineCount !== null ? '#22c55e' : '#64748b',
-                display: 'inline-block',
-                boxShadow: onlineCount !== null ? '0 0 6px #22c55e' : 'none',
-                animation: onlineCount !== null ? 'pulse-green 2s infinite' : 'none',
-              }}/>
-              <span className="text-xs font-semibold text-white">
-                {onlineCount !== null ? onlineCount : '—'}
-              </span>
+              <span style={{width:7,height:7,borderRadius:'50%',background:onlineCount!==null?'#22c55e':'#64748b',display:'inline-block',boxShadow:onlineCount!==null?'0 0 6px #22c55e':'none',animation:onlineCount!==null?'pulse-green 2s infinite':'none'}}/>
+              <span className="text-xs font-semibold text-white">{onlineCount!==null?onlineCount:'—'}</span>
             </button>
           )}
-          {/* Savol tugmasi — admindan boshqa hammaga */}
+          {/* Savol tugmasi — 3 marta tez bossangiz admin mode */}
           {!isAdmin && (
-            <button onClick={() => setShowFeedback(true)}
+            <button
+              onClick={() => {
+                adminTapRef.current += 1
+                clearTimeout(adminTapTimer.current)
+                if (adminTapRef.current >= 3) {
+                  setIsAdmin(true)
+                  setTab('admin' as any)
+                  adminTapRef.current = 0
+                } else {
+                  setShowFeedback(true)
+                  adminTapTimer.current = setTimeout(() => { adminTapRef.current = 0 }, 2000)
+                }
+              }}
               className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold text-white transition-colors">
               💬 {t.askBtn}
             </button>
