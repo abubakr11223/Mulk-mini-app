@@ -225,12 +225,15 @@ export default function MapPage() {
     const tgUser    = tg?.initDataUnsafe?.user
     const username  = tgUser?.username || tgUser?.first_name || (tgUserId ? `user${tgUserId}` : 'unknown')
 
-    // Debug: initData borligini tekshir
+    // Debug: ID ni ko'rsatamiz
     const initData = tg?.initData || ''
     const rawUser = tg?.initDataUnsafe?.user
-    console.log('TG initData:', initData?.substring(0,100))
-    console.log('TG user:', JSON.stringify(rawUser))
-    console.log('TG userId:', tgUserId)
+    // Admin ID ni aniqlash uchun vaqtinchalik toast
+    setTimeout(() => {
+      const detected = tgUserId || (rawUser?.id) || 'anon'
+      setShareToast(`ID: ${detected} | init: ${initData ? 'bor' : 'yoq'}`)
+      setTimeout(() => setShareToast(null), 5000)
+    }, 2000)
 
     // Admin tekshiruv
     const ADMIN_IDS = ['8669371925', '8546867911', '8600617650']
