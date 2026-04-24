@@ -254,7 +254,27 @@ export async function GET(req: Request) {
       console.log(`✅ URL resolve tugadi`)
     }
 
-    // 3. Admin editlarini olish
+    // 3. Redis coords (brauzer tool bilan saqlangan)
+    const coordsKeys = allLeads.map(l => ['get', `coords:${l.id}`])
+    const coordsRaw = coordsKeys.length > 0
+      ? await (async () => {
+          const r = await fetch(`${KV_URL}/pipeline`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(coordsKeys), cache: 'no-store',
+          })
+          return await r.json()
+        })()
+      : []
+    const kvCoordsMap: Record<string, { lat: number; lng: number }> = {}
+    allLeads.forEach((l, i) => {
+      try {
+        const c = JSON.parse(coordsRaw[i]?.result || 'null')
+        if (c?.lat && c?.lng) kvCoordsMap[l.id] = c
+      } catch {}
+    })
+
+    // 4. Admin editlarini olish
     const adminEditKeys = allLeads.map(l => ['get', `admin:edit:${l.id}`])
     const adminEditsRaw = adminEditKeys.length > 0
       ? await (async () => {
@@ -290,10 +310,11 @@ export async function GET(req: Request) {
           url = resolvedUrlCache[url]
         }
 
-        // Koordinata olish: 1) URL dan, 2) xotira cachidan, 3) fayl cachidan
+        // Koordinata olish: 1) URL dan, 2) xotira cachidan, 3) fayl cachidan, 4) Redis coords
         let coords = extractCoords(url)
         if (!coords) coords = resolvedUrlCache[url] ? extractCoords(resolvedUrlCache[url]) : null
         if (!coords) coords = fileCache[String(lead.id)] ?? null
+        if (!coords && kvCoordsMap[String(lead.id)]) coords = kvCoordsMap[String(lead.id)]
         if (!coords) coords = { lat: 0, lng: 0 }
 
         const rawPrice = lead.price ?? 0

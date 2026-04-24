@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Koordinata Resolver</title>
+<style>
+  body{background:#0f172a;color:#e2e8f0;font-family:system-ui;padding:20px;max-width:600px;margin:0 auto}
+  h1{color:#60a5fa;font-size:1.2rem}
+  button{background:#2563eb;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;margin:4px}
+  button:disabled{background:#475569;cursor:not-allowed}
+  #log{background:#1e293b;padding:12px;border-radius:8px;font-size:12px;height:300px;overflow-y:auto;margin:12px 0;white-space:pre-wrap}
+  .ok{color:#22c55e} .err{color:#ef4444} .info{color:#94a3b8}
+</style>
+</head>
+<body>
+<h1>🗺 Koordinata Resolver</h1>
+<p style="color:#94a3b8;font-size:13px">Bu sahifa brauzeringizdan Yandex URLlarini hal qiladi. Chrome da oching.</p>
+<button onclick="startResolve()" id="btn">▶ Boshlash</button>
+<button onclick="document.getElementById('log').textContent=''">🗑 Tozalash</button>
+<div id="log"><span class="info">Tugmani bosing...</span></div>
+<div id="result"></div>
+
+<script>
+const API = 'https://joyme-clone-abubakr11223s-projects.vercel.app'
+
+function log(msg, cls='info') {
+  const el = document.getElementById('log')
+  el.innerHTML += `<span class="${cls}">${msg}\n</span>`
+  el.scrollTop = el.scrollHeight
+}
+
+function extractCoords(url) {
+  if (!url) return null
+  const ll = url.match(/[?&]ll=([0-9.]+)[,%2C]+([0-9.]+)/i) ||
+             url.match(/[?&]ll=([0-9.]+)%2C([0-9.]+)/i)
+  if (ll) {
+    const lng = parseFloat(ll[1]), lat = parseFloat(ll[2])
+    if (lat>=37&&lat<=46&&lng>=56&&lng<=74) return {lat,lng}
+  }
+  const q = url.match(/[?&]q=([0-9.]+),([0-9.]+)/)
+  if (q) {
+    const a=parseFloat(q[1]),b=parseFloat(q[2])
+    if(a>=37&&a<=46&&b>=56&&b<=74) return{lat:a,lng:b}
+    if(b>=37&&b<=46&&a>=56&&a<=74) return{lat:b,lng:a}
+  }
+  return null
+}
+
+async function resolveUrl(shortUrl) {
+  try {
+    const r = await fetch(shortUrl, {
+      redirect: 'follow',
+      credentials: 'include',
+    })
+    return r.url
+  } catch(e) {
+    return null
+  }
+}
+
+async function startResolve() {
+  const btn = document.getElementById('btn')
+  btn.disabled = true
+  btn.textContent = '⏳ Ishlamoqda...'
+
+  log('📥 Uylar ro\'yxati olinmoqda...', 'info')
+
+  const resp = await fetch(`${API}/api/amo-leads`)
+  const houses = await resp.json()
+  const noCoords = houses.filter(h =>
+    (!h.lat || h.lat===0) &&
+    h.yandex_url &&
+    (h.yandex_url.includes('maps/-/') || h.yandex_url.includes('navi/-/'))
+  )
+
+  log(`📊 ${noCoords.length} ta uy koordinatasiz`, 'info')
+
+  const updates = {}
+  let resolved = 0
+
+  for (let i = 0; i < noCoords.length; i++) {
+    const h = noCoords[i]
+    log(`[${i+1}/${noCoords.length}] CRM #${h.id} — ${h.title?.substring(0,30)}...`, 'info')
+
+    const finalUrl = await resolveUrl(h.yandex_url)
+    const coords = extractCoords(finalUrl || '')
+
+    if (coords) {
+      updates[String(h.id)] = coords
+      resolved++
+      log(`  ✅ ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`, 'ok')
+    } else {
+      log(`  ❌ Topilmadi (${finalUrl?.substring(0,50) || 'null'})`, 'err')
+    }
+
+    await new Promise(r => setTimeout(r, 300))
+  }
+
+  log(`\n📤 ${resolved} ta koordinata serverga yuborilmoqda...`, 'info')
+
+  if (Object.keys(updates).length > 0) {
+    const saveResp = await fetch(`${API}/api/admin/save-coords`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({coords: updates})
+    })
+    const result = await saveResp.json()
+    log(result.ok ? `✅ Saqlandi! ${resolved} ta yangi koordinata` : `❌ Xato: ${result.error}`, result.ok?'ok':'err')
+  }
+
+  btn.disabled = false
+  btn.textContent = '▶ Qayta ishlatish'
+  document.getElementById('result').innerHTML =
+    `<div style="color:#22c55e;font-size:14px;margin-top:8px">✅ Tayyor! ${resolved}/${noCoords.length} ta koordinata topildi</div>`
+}
+</script>
+</body>
+</html>
