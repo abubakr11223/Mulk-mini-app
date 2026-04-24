@@ -48,15 +48,34 @@ function extractCoords(url) {
 }
 
 async function resolveUrl(shortUrl) {
-  try {
-    const r = await fetch(shortUrl, {
-      redirect: 'follow',
-      credentials: 'include',
-    })
-    return r.url
-  } catch(e) {
-    return null
-  }
+  return new Promise((resolve) => {
+    // Popup ochib, redirect URL ni olamiz
+    const popup = window.open(shortUrl, '_blank', 'width=100,height=100,left=0,top=0')
+    if (!popup) { resolve(null); return }
+    let attempts = 0
+    const check = setInterval(() => {
+      attempts++
+      try {
+        const url = popup.location.href
+        if (url && url !== 'about:blank' && !url.includes('showcaptcha')) {
+          clearInterval(check)
+          popup.close()
+          resolve(url)
+        } else if (url.includes('showcaptcha')) {
+          clearInterval(check)
+          popup.close()
+          resolve(null)
+        }
+      } catch(e) {
+        // cross-origin - hali yuklanmagan
+      }
+      if (attempts > 20) {
+        clearInterval(check)
+        try { popup.close() } catch {}
+        resolve(null)
+      }
+    }, 500)
+  })
 }
 
 async function startResolve() {
