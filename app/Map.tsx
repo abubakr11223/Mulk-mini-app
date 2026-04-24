@@ -264,11 +264,12 @@ export default function MapPage() {
         .catch(() => {})
     }
 
+    const rawInitData = tg?.initData || ''
     const ping = () => {
       fetch('/api/presence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, username }),
+        body: JSON.stringify({ userId, username, initData: rawInitData }),
       }).then(() => fetchCount()).catch(() => {})
     }
 
