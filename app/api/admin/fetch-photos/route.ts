@@ -76,6 +76,7 @@ export async function GET(req: Request) {
 
     let found = 0
     const cmds: any[][] = []
+    const errors: string[] = []
 
     for (const lead of leads) {
       const crmId = String(lead.id)
@@ -96,7 +97,9 @@ export async function GET(req: Request) {
           cmds.push(['set', `photo_urls:${crmId}`, JSON.stringify([...new Set(allUrls)]), 'EX', 60*60*24*365])
           found++
         }
-      } catch {} // skip failed notes
+      } catch (e: any) {
+        errors.push(`${crmId}: ${String(e).substring(0,50)}`)
+      }
     }
 
     if (cmds.length > 0) {
@@ -112,6 +115,7 @@ export async function GET(req: Request) {
       processed: leads.length,
       found,
       total,
+      errors: errors.slice(0,3),
       nextPage: done ? null : startPage + 1,
       done,
     })
