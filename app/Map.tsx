@@ -23,7 +23,6 @@ const T = {
     newTag: 'Yangi', rooms_n: (n: number) => `${n} xona`,
     floor_n: (f: number, t: number | string) => `${f}/${t}-qavat`,
     area_n: (a: number) => `${a} m²`,
-    askBtn: 'Savol', askTitle: 'Savol yoki taklif', askPlaceholder: 'Savolingizni yozing...', askSend: 'Yuborish', askSending: 'Yuborilmoqda...', askSent: 'Xabaringiz yuborildi!', askSentSub: 'Tez orada javob beramiz',
   },
   ru: {
     gallery: 'Галерея', mapTab: 'На карте', filter: 'Фильтры',
@@ -41,7 +40,6 @@ const T = {
     newTag: 'Новый', rooms_n: (n: number) => `${n} комн`,
     floor_n: (f: number, t: number | string) => `${f}/${t} эт`,
     area_n: (a: number) => `${a} м²`,
-    askBtn: 'Вопрос', askTitle: 'Вопрос или предложение', askPlaceholder: 'Напишите ваш вопрос...', askSend: 'Отправить', askSending: 'Отправка...', askSent: 'Сообщение отправлено!', askSentSub: 'Скоро ответим',
   },
   en: {
     gallery: 'Gallery', mapTab: 'Map', filter: 'Filter',
@@ -59,7 +57,6 @@ const T = {
     newTag: 'New', rooms_n: (n: number) => `${n} rooms`,
     floor_n: (f: number, t: number | string) => `${f}/${t}F`,
     area_n: (a: number) => `${a} m²`,
-    askBtn: 'Question', askTitle: 'Question or suggestion', askPlaceholder: 'Write your question...', askSend: 'Send', askSending: 'Sending...', askSent: 'Message sent!', askSentSub: 'We\'ll reply soon',
   },
 }
 
@@ -69,15 +66,25 @@ const DISTRICTS = [
   'Uchtepa', 'Yakkasaroy', 'Shahar markazi',
 ]
 
+function norm(s: string): string {
+  return (s || '').toLowerCase()
+    .replace(/[''ʼʻ`ʹ]/g, '')
+    .replace(/[-–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // ────────────────────────────────────────────────────────────
 // INTERFACES
 // ────────────────────────────────────────────────────────────
 interface House {
-  id: number; title: string; lat: number; lng: number
-  price: number; oldPrice: number; rooms: number; area: number; floor: number
+  id: number;
+  olx_id?: string;
+  title: string; lat: number; lng: number
+  price: number; rooms: number; area: number; floor: number
   totalFloors: number; district: string; description: string
   landmark: string; jk: string; yandex_url: string; updatedAt: number
-  isTop: boolean
+  isTop?: boolean
 }
 
 interface Filters {
@@ -87,26 +94,49 @@ interface Filters {
   priceMin: string; priceMax: string
 }
 
+interface OnlineUser {
+  userId: number
+  username: string | null
+  firstName: string
+  lastName: string
+  lastSeen: number
+}
+
 const EMPTY: Filters = {
   district: '', roomMin: '', roomMax: '', areaMin: '', areaMax: '', type: 'all',
   floorsMin: '', floorsMax: '', floorMin: '', floorMax: '', priceMin: '', priceMax: '',
 }
 
 type Tab = 'gallery' | 'map' | 'filter' | 'admin'
-const ZOOM_DOT = 9
-const ZOOM_LABEL = 14
+const ZOOM_DOT = 13
+const ZOOM_LABEL = 15
 
 // ────────────────────────────────────────────────────────────
 // HELPERS
 // ────────────────────────────────────────────────────────────
-const priceLbl  = (p: number) => !p ? '?' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p/1e6).toFixed(0)}M`
-const priceStr  = (p: number) => !p ? '—' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p/1e6).toFixed(1)} mln so'm`
-const discount  = (old: number, cur: number) => old > cur && old > 0 ? Math.round((old - cur) / old * 100) : 0
+const priceLbl = (p: number) => !p ? '?' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p / 1e6).toFixed(0)}M`
+const priceStr = (p: number) => !p ? '—' : p < 500_000 ? `$${p.toLocaleString('en')}` : `${(p / 1e6).toFixed(1)} mln so'm`
+
+function secsAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000)
+  if (s < 5) return 'hozirgina'
+  if (s < 60) return `${s}s oldin`
+  if (s < 3600) return `${Math.floor(s / 60)}m oldin`
+  return `${Math.floor(s / 3600)}s oldin`
+}
 
 function applyFilters(h: House[], f: Filters, q: string): House[] {
   return h.filter(x => {
-    if (q) { const s = q.toLowerCase(); if (![x.title,x.district,x.landmark,x.jk,String(x.id)].join(' ').toLowerCase().includes(s)) return false }
-    if (f.district) { const s = f.district.toLowerCase(); if (![x.district,x.title,x.landmark,x.jk].join(' ').toLowerCase().includes(s)) return false }
+    if (q) {
+      const s = norm(q)
+      const hay = norm([x.title, x.district, x.landmark, x.jk, String(x.id), String(x.price)].join(' '))
+      if (!s.split(' ').filter(Boolean).every(w => hay.includes(w))) return false
+    }
+    if (f.district) {
+      const s = norm(f.district)
+      const hay = norm([x.district, x.title, x.landmark, x.jk].join(' '))
+      if (!s.split(' ').filter(Boolean).every(w => hay.includes(w))) return false
+    }
     if (f.roomMin && x.rooms < +f.roomMin) return false
     if (f.roomMax && x.rooms > +f.roomMax) return false
     if (f.areaMin && x.area < +f.areaMin) return false
@@ -134,259 +164,158 @@ function makePriceSvg(label: string) {
   const w = Math.max(64, label.length * 8.5 + 22)
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="34">` +
-    `<rect x="1" y="1" width="${w-2}" height="24" rx="12" fill="#2563eb" stroke="white" stroke-width="1.5"/>` +
-    `<text x="${w/2}" y="17" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="700" fill="white">${label}</text>` +
-    `<polygon points="${w/2-5},25 ${w/2},34 ${w/2+5},25" fill="#2563eb"/></svg>`
+    `<rect x="1" y="1" width="${w - 2}" height="24" rx="12" fill="#2563eb" stroke="white" stroke-width="1.5"/>` +
+    `<text x="${w / 2}" y="17" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="700" fill="white">${label}</text>` +
+    `<polygon points="${w / 2 - 5},25 ${w / 2},34 ${w / 2 + 5},25" fill="#2563eb"/></svg>`
   )
 }
 
 // ────────────────────────────────────────────────────────────
 // ICONS
 // ────────────────────────────────────────────────────────────
-const IcGrid = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-const IcMap  = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
-const IcFlt  = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-const IcPhone= () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 010 1.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-const IcShare= () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-const IcX    = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-const IcSrch = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-const IcRef  = ({ s }: { s: boolean }) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{animation: s ? 'spin 1s linear infinite' : 'none'}}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+const IcGrid = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
+const IcMap = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" /></svg>
+const IcFlt = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" /></svg>
+const IcAdmin = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+const IcShare = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
+const IcPhone = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 010 1.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>
+
+const IcX = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+const IcSrch = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+const IcRef = ({ s }: { s: boolean }) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: s ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
 
 // ────────────────────────────────────────────────────────────
 // MAIN
 // ────────────────────────────────────────────────────────────
 export default function MapPage() {
-  const mapRef    = useRef<HTMLDivElement>(null)
-  const ymapsRef  = useRef<any>(null)
+  const mapRef = useRef<HTMLDivElement>(null)
+  const ymapsRef = useRef<any>(null)
   const mapObjRef = useRef<any>(null)
   const boundsSet = useRef(false)
 
   const [ymapsReady, setYmapsReady] = useState(false)
-  const [houses,  setHouses]  = useState<House[]>([])
+  const [houses, setHouses] = useState<House[]>([])
   const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState<string | null>(null)
-  const [selected,setSelected]= useState<House | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<House | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [filters, setFilters] = useState<Filters>(EMPTY)
-  const [search,  setSearch]  = useState('')
-  const [tab,     setTab]     = useState<Tab>('gallery')
-  const [lang,    setLang]    = useState<Lang>('uz')
-  const [lightbox,setLightbox]= useState<{crmId:number;count:number;idx:number}|null>(null)
-  const [onlineCount, setOnlineCount] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+  const [tab, setTab] = useState<Tab>('gallery')
+  const [lang, setLang] = useState<Lang>('uz')
+  const [lightboxInfo, setLightboxInfo] = useState<{ crmId: number; index: number; count: number } | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [shareToast, setShareToast] = useState<string | null>(null)
-  const [showOnlinePanel, setShowOnlinePanel] = useState(false)
-  const [onlineUsers, setOnlineUsers] = useState<{id:string;username:string;lastSeen:number}[]>([])
-  const [showFeedback, setShowFeedback] = useState(false)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [feedbackSending, setFeedbackSending] = useState(false)
-  const [feedbackSent, setFeedbackSent] = useState(false)
-  const [photoHasMap, setPhotoHasMap] = useState<Record<number,boolean>>({})
-  const [editTarget, setEditTarget] = useState<House | null>(null)
-  const [editData, setEditData] = useState<{priceOverride?:number;titleOverride?:string;isTop?:boolean;hidden?:boolean;lat?:number;lng?:number}>({})
-  const [editSaving, setEditSaving] = useState(false)
-  const [editToast, setEditToast] = useState<string|null>(null)
+  const isAdminRef = useRef(false)
+  const [adminResolved, setAdminResolved] = useState(false)
+  const [showLeadForm, setShowLeadForm] = useState(false)
+
+  // Admin
+  const [adminSubTab, setAdminSubTab] = useState<'online' | 'hidden'>('online')
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
 
   const t = T[lang]
-  const filtered = applyFilters(houses, filters, search)
-    .sort((a, b) => {
-      if (isAdmin) {
-        // Admin: rasmsiz uylar birinchi, keyin yangilar
-        const aHasPhoto = photoHasMap[a.id] ? 1 : 0
-        const bHasPhoto = photoHasMap[b.id] ? 1 : 0
-        if (aHasPhoto !== bHasPhoto) return aHasPhoto - bHasPhoto  // rasmsiz birinchi
-        return (b.updatedAt || 0) - (a.updatedAt || 0)
-      }
-      return (b.isTop ? 1 : 0) - (a.isTop ? 1 : 0)
-    })
-  const fCount = Object.entries(filters).filter(([k,v]) => k==='type'?v!=='all':v!=='').length
+  const filteredRaw = applyFilters(houses, filters, search)
+  const filtered = [...filteredRaw].sort((a, b) => (b.isTop ? 1 : 0) - (a.isTop ? 1 : 0))
+  const fCount = Object.entries(filters).filter(([k, v]) => k === 'type' ? v !== 'all' : v !== '').length
 
+  // iOS zoom to'liq to'sish
+  useEffect(() => {
+    let lastTouch = 0
+    const onTouchStart = (e: TouchEvent) => { if (e.touches.length > 1) e.preventDefault() }
+    const onTouchEnd = (e: TouchEvent) => {
+      const now = Date.now()
+      if (now - lastTouch < 300) e.preventDefault()
+      lastTouch = now
+    }
+    document.addEventListener('touchstart', onTouchStart, { passive: false })
+    document.addEventListener('touchend', onTouchEnd, { passive: false })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
+  // Telegram init + admin tekshirish
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp
     if (tg) { tg.ready(); tg.expand() }
+
+    const checkAdmin = async () => {
+      const chatId = tg?.initDataUnsafe?.user?.id
+      const initData = tg?.initData || ''
+      if (chatId || initData) {
+        try {
+          const r = await fetch('/api/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'check', chatId, initData }),
+          })
+          const d = await r.json()
+          if (d.ok && d.isAdmin) setIsAdmin(true)
+        } catch { }
+      }
+      setAdminResolved(true)
+    }
+    checkAdmin()
   }, [])
 
-  // ── Analytics: event yuborish ─────────────────────────────────────────────
-  const track = (event: string, data: Record<string, any> = {}) => {
-    const tg = (window as any).Telegram?.WebApp
-    const userId = tg?.initDataUnsafe?.user?.id
-    fetch('/api/analytics', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event, userId, data }),
-    }).catch(() => {})
-  }
+  useEffect(() => { isAdminRef.current = isAdmin }, [isAdmin])
 
-  // ── Presence heartbeat + app_open event ──────────────────────────────────
+  // Admin check tugagandan KEYIN 10 soniya timer (admin uchun emas)
+  useEffect(() => {
+    if (!adminResolved) return
+    if (isAdmin) return
+    const timer = setTimeout(() => {
+      try {
+        const tg = (window as any).Telegram?.WebApp
+        const uid = tg?.initDataUnsafe?.user?.id
+        const key = uid ? `lfts_${uid}` : 'lfts'
+        const stored = localStorage.getItem(key)
+        if (stored && Date.now() - parseInt(stored) < 86_400_000) return // 24h cooldown
+      } catch { }
+      setShowLeadForm(true)
+    }, 10_000)
+    return () => clearTimeout(timer)
+  }, [adminResolved, isAdmin])
+
+  // Heartbeat: bu foydalanuvchi hozir online ekanligini bildirish
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp
-    const tgUserId  = tg?.initDataUnsafe?.user?.id
-    const userId    = tgUserId || `anon_${Math.random().toString(36).slice(2,9)}`
-    const tgUser    = tg?.initDataUnsafe?.user
-    const username  = tgUser?.username || tgUser?.first_name || (tgUserId ? `user${tgUserId}` : 'unknown')
+    const user = tg?.initDataUnsafe?.user
+    if (!user?.id) return
 
-    // Debug: ID ni ko'rsatamiz
-    const initData = tg?.initData || ''
-    const rawUser = tg?.initDataUnsafe?.user
-    // Admin ID ni aniqlash uchun vaqtinchalik toast
-    setTimeout(() => {
-      const detected = tgUserId || (rawUser?.id) || 'anon'
-      setShareToast(`ID: ${detected} | init: ${initData ? 'bor' : 'yoq'}`)
-      setTimeout(() => setShareToast(null), 5000)
-    }, 2000)
-
-    // Admin tekshiruv
-    const ADMIN_IDS = ['8669371925', '8546867911', '8600617650']
-    if (tgUserId && ADMIN_IDS.includes(String(tgUserId))) {
-      setIsAdmin(true)
-    } else if (initData) {
-      // initData dan user ID ni parse qilamiz
-      try {
-        const params = new URLSearchParams(initData)
-        const userStr = params.get('user')
-        if (userStr) {
-          const parsedUser = JSON.parse(decodeURIComponent(userStr))
-          console.log('Parsed user from initData:', parsedUser)
-          if (parsedUser?.id && ADMIN_IDS.includes(String(parsedUser.id))) {
-            setIsAdmin(true)
-          }
-        }
-      } catch {}
-    }
-
-    // App ochildi — analytics
-    track('app_open')
-
-    const fetchCount = () => {
-      fetch('/api/online-count')
-        .then(r => r.json())
-        .then(d => { if (d.ok) setOnlineCount(d.online) })
-        .catch(() => {})
-    }
-
-    const rawInitData = tg?.initData || ''
-    const ping = () => {
-      fetch('/api/presence', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, username, initData: rawInitData }),
-      }).then(() => fetchCount()).catch(() => {})
-    }
-
-    // Chiqganda darhol o'chirish
-    const leave = () => {
-      fetch('/api/presence', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-        keepalive: true,
-      }).catch(() => {})
-    }
-
-    // Visibility change — app yashirilsa/ko'rsatilsa
-    const onVisibility = () => {
-      if (document.hidden) {
-        leave()
-      } else {
-        ping()
-      }
-    }
-
-    ping()
-    const pingId = setInterval(ping, 25_000)
-    const countId = setInterval(fetchCount, 25_000)
-
-    document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('beforeunload', leave)
-    const tgApp = (window as any).Telegram?.WebApp
-    if (tgApp?.onEvent) tgApp.onEvent('viewportChanged', () => { if (tgApp.viewportHeight === 0) leave() })
-
-    return () => {
-      clearInterval(pingId)
-      clearInterval(countId)
-      document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('beforeunload', leave)
-      leave()
-    }
-  }, [])
-
-  // ── Admin mode: logoga 5 marta bosish ────────────────────────────────────
-  const adminTapRef = useRef(0)
-  const adminTapTimer = useRef<any>(null)
-  const handleLogoTap = () => {
-    adminTapRef.current += 1
-    clearTimeout(adminTapTimer.current)
-    if (adminTapRef.current >= 5) {
-      setIsAdmin(prev => !prev)
-      adminTapRef.current = 0
-    } else {
-      adminTapTimer.current = setTimeout(() => { adminTapRef.current = 0 }, 2000)
-    }
-  }
-
-  // ── Admin: uyni tahrirlash ────────────────────────────────────────────────
-  const openEdit = (h: House) => {
-    setEditTarget(h)
-    setEditData({ priceOverride: h.price, titleOverride: h.title, isTop: h.isTop, hidden: false, lat: h.lat || undefined, lng: h.lng || undefined })
-  }
-  const saveEdit = async () => {
-    if (!editTarget) return
-    setEditSaving(true)
-    try {
-      const res = await fetch('/api/admin/edit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ crmId: editTarget.id, ...editData,
-          ...(editData.lat && editData.lng ? { latOverride: editData.lat, lngOverride: editData.lng } : {})
-        }),
-      })
-      const d = await res.json()
-      if (d.ok) {
-        setEditToast('✅ Saqlandi!')
-        setEditTarget(null)
-        setTimeout(() => { setEditToast(null); load(true) }, 1500)
-      }
-    } catch {}
-    setEditSaving(false)
-  }
-  const hideHouse = async (h: House) => {
-    await fetch('/api/admin/edit', {
+    const beat = () => fetch('/api/online', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ crmId: h.id, hidden: true }),
-    })
-    setEditToast('🚫 Yashirildi')
-    setTimeout(() => { setEditToast(null); load(true) }, 1500)
-  }
+      body: JSON.stringify({
+        userId: user.id,
+        username: user.username || null,
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+      }),
+    }).catch(() => { })
 
-  // ── Online users panel (admin) ────────────────────────────────────────────
-  const openOnlinePanel = () => {
-    setShowOnlinePanel(true)
-    fetch('/api/online-count')
-      .then(r => r.json())
-      .then(d => { if (d.ok) { setOnlineCount(d.online); setOnlineUsers(d.users || []) } })
-      .catch(() => {})
-  }
+    beat()
+    const id = setInterval(beat, 30_000)
+    return () => clearInterval(id)
+  }, [])
 
-  // ── Feedback yuborish ─────────────────────────────────────────────────────
-  const sendFeedback = async () => {
-    if (!feedbackText.trim()) return
+  // Admin: online foydalanuvchilarni olish (har 15s)
+  useEffect(() => {
+    if (!isAdmin) return
     const tg = (window as any).Telegram?.WebApp
-    const userId   = tg?.initDataUnsafe?.user?.id || 'anon'
-    const username = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || 'Noma\'lum'
-    setFeedbackSending(true)
-    try {
-      await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, username, message: feedbackText }),
-      })
-      setFeedbackSent(true)
-      setFeedbackText('')
-      setTimeout(() => { setFeedbackSent(false); setShowFeedback(false) }, 2000)
-    } catch {}
-    setFeedbackSending(false)
-  }
+    const chatId = tg?.initDataUnsafe?.user?.id
+    if (!chatId) return
+
+    const fetchOnline = () => fetch(`/api/online?chatId=${chatId}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setOnlineUsers(d.users || []) })
+      .catch(() => { })
+
+    fetchOnline()
+    const id = setInterval(fetchOnline, 15_000)
+    return () => clearInterval(id)
+  }, [isAdmin])
 
   const load = useCallback(async (force = false) => {
     setSyncing(true)
@@ -400,7 +329,7 @@ export default function MapPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
-  useEffect(() => { const id = setInterval(()=>load(), 300_000); return ()=>clearInterval(id) }, [load])
+  useEffect(() => { const id = setInterval(() => load(), 60_000); return () => clearInterval(id) }, [load])
 
   // Yandex Maps SDK
   useEffect(() => {
@@ -414,7 +343,6 @@ export default function MapPage() {
     s.async = true; s.onload = init; document.head.appendChild(s)
   }, [])
 
-  // Render markers based on zoom
   const renderMarkers = useCallback((zoom: number) => {
     const ymaps = ymapsRef.current, map = mapObjRef.current
     if (!ymaps || !map) return
@@ -422,22 +350,19 @@ export default function MapPage() {
 
     filtered.forEach(h => {
       if (!h.lat || !h.lng || isNaN(h.lat) || isNaN(h.lng) ||
-          h.lat < 37 || h.lat > 46 || h.lng < 55 || h.lng > 74) return
+        h.lat < 37 || h.lat > 46 || h.lng < 55 || h.lng > 74) return
 
       const isLabel = zoom >= ZOOM_LABEL
-      const isDot   = zoom >= ZOOM_DOT && zoom < ZOOM_LABEL
-
-      if (!isLabel && !isDot) return // don't show at very low zoom
+      const isDot = zoom >= ZOOM_DOT && zoom < ZOOM_LABEL
+      if (!isLabel && !isDot) return
 
       let href: string, size: [number, number], offset: [number, number]
       if (isLabel) {
         const lbl = priceLbl(h.price)
         const w = Math.max(64, lbl.length * 8.5 + 22)
-        href = makePriceSvg(lbl); size = [w, 34]; offset = [-w/2, -34]
+        href = makePriceSvg(lbl); size = [w, 34]; offset = [-w / 2, -34]
       } else {
-        // Zoom ga qarab dot o'lchami: yaqin = 16, uzoq = 10
-        const d = zoom >= 12 ? 16 : zoom >= 11 ? 13 : 10
-        href = makeDotSvg(); size = [d, d]; offset = [-d/2, -d/2]
+        href = makeDotSvg(); size = [16, 16]; offset = [-8, -8]
       }
 
       const pm = new ymaps.Placemark([h.lat, h.lng], { hintContent: h.title }, {
@@ -447,17 +372,13 @@ export default function MapPage() {
       pm.events.add('click', () => openCard(h, true))
       map.geoObjects.add(pm)
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered])
 
-  const openCard = (h: House, switchToMap = false) => {
+  const openCard = (h: House, fromMarker = false) => {
     setSelected(h)
-    track('property_view', { crmId: h.id, title: h.title, district: h.district })
-    if (switchToMap) {
-      setTab('map')
-      if (mapObjRef.current) {
-        mapObjRef.current.panTo([h.lat, h.lng], { flying: false, duration: 300 })
-      }
+    if (fromMarker && mapObjRef.current) {
+      mapObjRef.current.panTo([h.lat, h.lng], { flying: false, duration: 300 })
     }
   }
 
@@ -480,291 +401,94 @@ export default function MapPage() {
   }, [filtered, ymapsReady, renderMarkers])
 
   useEffect(() => {
-    if (tab === 'map') setTimeout(() => { try { mapObjRef.current?.container?.fitToViewport() } catch {} }, 150)
+    if (tab === 'map') setTimeout(() => { try { mapObjRef.current?.container?.fitToViewport() } catch { } }, 150)
   }, [tab])
 
-  useEffect(() => () => { try { mapObjRef.current?.destroy() } catch {}; mapObjRef.current = null }, [])
+  useEffect(() => () => { try { mapObjRef.current?.destroy() } catch { }; mapObjRef.current = null }, [])
 
   const shareHouse = async (h: House) => {
-    track('share_click', { crmId: h.id, district: h.district })
-    const tgApp   = (window as any).Telegram?.WebApp
-    const initData = tgApp?.initData || ''
-    const userId  = tgApp?.initDataUnsafe?.user?.id
-
-    setShareToast('⏳ Yuborilmoqda...')
-    try {
-      const res = await fetch('/api/share-property', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId, initData, crmId: h.id,
-          title: h.title, price: priceStr(h.price),
-          rooms: h.rooms > 0 ? String(h.rooms) : '',
-          area:  h.area  > 0 ? String(h.area)  : '',
-          floor: h.floor, totalFloors: h.totalFloors,
-          district: h.district, landmark: h.landmark,
-          jk: h.jk, yandex_url: h.yandex_url,
-        }),
-      })
-      const data = await res.json()
-      if (data.ok) {
-        setShareToast('✅ Yuborildi! Bot chatidan forward qiling')
-        // Bot chatini ochib, user u yerdan forward qiladi
-        setTimeout(() => {
-          setShareToast(null)
-          if (tgApp?.openTelegramLink) tgApp.openTelegramLink('https://t.me/mulkinvestbot')
-        }, 2000)
-      } else {
-        setShareToast('❌ ' + (data.error || 'Xato'))
-        setTimeout(() => setShareToast(null), 3000)
-      }
-    } catch {
-      setShareToast('❌ Xato yuz berdi')
-      setTimeout(() => setShareToast(null), 2000)
-    }
-  }
-
-  const callSeller = (crmId?: number) => {
-    track('call_click', { crmId })
     const tg = (window as any).Telegram?.WebApp
-    const phone = '+998915514499'
-    if (tg?.showConfirm) {
-      tg.showConfirm(`📞 ${phone} ga qo'ng'iroq qilasizmi?`, (ok: boolean) => {
-        if (ok) {
-          if (tg?.openLink) tg.openLink(`tel:${phone}`)
-          else window.open(`tel:${phone}`)
+    const chatId = tg?.initDataUnsafe?.user?.id
+    const caption = [
+      `🏠 ${h.title}`,
+      `💰 ${priceStr(h.price)}`,
+      h.rooms ? `🛏 ${t.rooms_n(h.rooms)}` : '',
+      h.area ? `📐 ${t.area_n(h.area)}` : '',
+      h.floor ? `🏢 ${t.floor_n(h.floor, h.totalFloors || '?')}` : '',
+      h.district ? `📍 ${h.district}` : '',
+      h.landmark ? `🗺 ${h.landmark}` : '',
+      h.yandex_url ? `📌 ${h.yandex_url}` : '',
+      `📞 +998 91 551 44 99`,
+    ].filter(Boolean).join('\n')
+
+    if (chatId) {
+      try {
+        const r = await fetch('/api/share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ crmId: h.id, olx_id: h.olx_id, chatId, caption }),
+        })
+        const d = await r.json()
+        if (d.ok) {
+          tg?.showAlert?.("✅ Chatga yuborildi!")
+          return
         }
-      })
-    } else if (window.confirm(`📞 ${phone} ga qo'ng'iroq qilasizmi?`)) {
-      window.open(`tel:${phone}`)
+      } catch { }
+    }
+    tg?.showAlert?.("❌ Yuborib bo'lmadi")
+  }
+
+  // Foydalanuvchi Telegram profiliga o'tish
+  const openUserChat = (u: OnlineUser) => {
+    const tg = (window as any).Telegram?.WebApp
+    if (u.username) {
+      if (tg?.openTelegramLink) tg.openTelegramLink(`https://t.me/${u.username}`)
+      else window.open(`https://t.me/${u.username}`, '_blank')
+    } else {
+      if (tg?.openLink) tg.openLink(`tg://user?id=${u.userId}`)
     }
   }
-  const cycleLang = () => setLang(l => l==='uz'?'ru':l==='ru'?'en':'uz')
+
+  const cycleLang = () => setLang(l => l === 'uz' ? 'ru' : l === 'ru' ? 'en' : 'uz')
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center bg-slate-900" style={{height:'100dvh'}}>
-      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"/>
+    <div className="flex flex-col items-center justify-center bg-slate-900" style={{ height: '100dvh' }}>
+      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
       <p className="text-slate-400 text-sm">{t.loading}</p>
     </div>
   )
   if (error && !houses.length) return (
-    <div className="flex flex-col items-center justify-center bg-slate-900 gap-4 px-6" style={{height:'100dvh'}}>
+    <div className="flex flex-col items-center justify-center bg-slate-900 gap-4 px-6" style={{ height: '100dvh' }}>
       <p className="text-red-400 text-center text-sm">{error}</p>
-      <button className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm" onClick={()=>load(true)}>{t.retry}</button>
+      <button className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm" onClick={() => load(true)}>{t.retry}</button>
     </div>
   )
 
   return (
-    <div className="flex flex-col bg-slate-900 text-white" style={{height:'100dvh',overflow:'hidden'}}>
-
-      {/* LIGHTBOX — MapPage darajasida (transform muammosiz) */}
-      {/* Edit toast */}
-      {editToast && (
-        <div className="fixed bottom-24 inset-x-6 z-[60] flex justify-center pointer-events-none">
-          <div className="bg-slate-700 text-white text-sm px-5 py-3 rounded-2xl shadow-2xl border border-white/15 text-center">
-            {editToast}
-          </div>
-        </div>
-      )}
-
-      {/* Admin Edit Modal */}
-      {editTarget && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{background:'rgba(0,0,0,0.75)'}}>
-          <div className="w-full max-w-md bg-slate-900 rounded-t-2xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-bold text-base">✏️ Tahrirlash</h2>
-              <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-white text-xl">✕</button>
-            </div>
-
-            {/* Nom */}
-            <div className="mb-3">
-              <p className="text-slate-400 text-xs mb-1">Nomi</p>
-              <input type="text" value={editData.titleOverride||''} onChange={e=>setEditData(d=>({...d,titleOverride:e.target.value}))}
-                className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500"
-                style={{fontSize:'16px'}}/>
-            </div>
-
-            {/* Narx */}
-            <div className="mb-4">
-              <p className="text-slate-400 text-xs mb-1">Narx ($)</p>
-              <input type="number" inputMode="numeric" value={editData.priceOverride||''} onChange={e=>setEditData(d=>({...d,priceOverride:Number(e.target.value)}))}
-                className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500"
-                style={{fontSize:'16px'}}/>
-            </div>
-
-            {/* Koordinata */}
-            <div className="mb-3">
-              <p className="text-slate-400 text-xs mb-1">📍 Koordinata (lat, lng)</p>
-              <div className="flex gap-2">
-                <input type="number" placeholder="lat" value={editData.lat||''} onChange={e=>setEditData(d=>({...d,lat:Number(e.target.value)}))}
-                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500 text-sm" style={{fontSize:'16px'}}/>
-                <input type="number" placeholder="lng" value={editData.lng||''} onChange={e=>setEditData(d=>({...d,lng:Number(e.target.value)}))}
-                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500 text-sm" style={{fontSize:'16px'}}/>
-              </div>
-              <p className="text-slate-500 text-[10px] mt-1">Yandex Maps dan: ?ll=lng,lat</p>
-            </div>
-
-            {/* Toggles */}
-            <div className="flex gap-2 mb-4">
-              <button onClick={()=>setEditData(d=>({...d,isTop:!d.isTop}))}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${editData.isTop?'bg-yellow-500 text-black':'bg-slate-800 text-slate-300 border border-white/10'}`}>
-                ⭐ TOP
-              </button>
-              <button onClick={()=>hideHouse(editTarget)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors">
-                🚫 Yashirish
-              </button>
-            </div>
-
-            <button onClick={saveEdit} disabled={editSaving}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 rounded-2xl text-white font-bold transition-colors">
-              {editSaving ? 'Saqlanmoqda...' : '💾 Saqlash'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Share toast */}
-      {shareToast && (
-        <div className="fixed bottom-24 inset-x-6 z-[60] flex justify-center pointer-events-none">
-          <div className="bg-slate-700 text-white text-sm px-5 py-3 rounded-2xl shadow-2xl border border-white/15 text-center">
-            <p className="font-semibold">{shareToast}</p>
-            {shareToast.includes('✅') && (
-              <p className="text-xs text-slate-300 mt-0.5">Mulk Invest botidan xohlagan odamga yuboring</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {lightbox && (
-        <Lightbox
-          crmId={lightbox.crmId} count={lightbox.count} initial={lightbox.idx}
-          onClose={() => setLightbox(null)}
-        />
-      )}
-
-      {/* ── ADMIN: Online users panel ──────────────────────────────────── */}
-      {showOnlinePanel && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{background:'rgba(0,0,0,0.7)'}}>
-          <div className="w-full max-w-md bg-slate-900 rounded-t-2xl p-4" style={{maxHeight:'80vh',overflowY:'auto'}}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-bold text-base">🟢 Online foydalanuvchilar ({onlineCount})</h2>
-              <button onClick={() => setShowOnlinePanel(false)} className="text-slate-400 hover:text-white text-xl">✕</button>
-            </div>
-            {onlineUsers.length === 0 ? (
-              <p className="text-slate-400 text-sm text-center py-4">Hozir hech kim online emas</p>
-            ) : (
-              <div className="space-y-2">
-                {onlineUsers.map(u => {
-                  const secAgo = Math.max(0, Math.floor((Date.now() - u.lastSeen) / 1000))
-                  const timeStr = secAgo < 60 ? `${secAgo}s oldin` : `${Math.floor(secAgo/60)}m oldin`
-                  const isAnon = String(u.id).startsWith('anon_')
-                  const openChat = () => {
-                    if (isAnon) return
-                    const tg = (window as any).Telegram?.WebApp
-                    try {
-                      if (tg?.openTelegramLink) {
-                        tg.openTelegramLink(`https://t.me/${u.username || `user${u.id}`}`)
-                      } else {
-                        window.location.href = `tg://user?id=${u.id}`
-                      }
-                    } catch {}
-                  }
-                  return (
-                    <div key={u.id}
-                      onClick={openChat}
-                      className={`flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2.5 transition-colors ${!isAnon ? 'cursor-pointer active:bg-slate-700 hover:bg-slate-700' : 'opacity-70'}`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{isAnon ? '👤' : '🙍‍♂️'}</span>
-                        <div>
-                          <p className="text-white text-sm font-medium">
-                            {isAnon ? 'Anonim (Mac)' : (u.username ? `@${u.username}` : `User ${u.id}`)}
-                          </p>
-                          <p className="text-slate-400 text-xs">
-                            {isAnon ? 'Telegram ID yo\'q' : '💬 bosib chat oching'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-green-400">{timeStr}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            <button onClick={openOnlinePanel}
-              className="mt-4 w-full py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-white text-sm transition-colors">
-              🔄 Yangilash
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── FEEDBACK: Savol yuborish modal ────────────────────────────── */}
-      {showFeedback && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{background:'rgba(0,0,0,0.7)'}}>
-          <div className="w-full max-w-md bg-slate-900 rounded-t-2xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-bold text-base">💬 {t.askTitle}</h2>
-              <button onClick={() => { setShowFeedback(false); setFeedbackText('') }} className="text-slate-400 hover:text-white text-xl">✕</button>
-            </div>
-            {feedbackSent ? (
-              <div className="text-center py-6">
-                <p className="text-2xl mb-2">✅</p>
-                <p className="text-white font-medium">{t.askSent}</p>
-                <p className="text-slate-400 text-sm mt-1">{t.askSentSub}</p>
-              </div>
-            ) : (
-              <>
-                <textarea
-                  value={feedbackText}
-                  onChange={e => setFeedbackText(e.target.value)}
-                  placeholder={t.askPlaceholder}
-                  className="w-full bg-slate-800 text-white placeholder-slate-500 rounded-xl p-3 text-sm outline-none resize-none"
-                  rows={4}
-                  style={{fontSize:'16px'}}
-                />
-                <button
-                  onClick={sendFeedback}
-                  disabled={!feedbackText.trim() || feedbackSending}
-                  className="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-xl text-white font-bold text-sm transition-colors">
-                  {feedbackSending ? t.askSending : `📤 ${t.askSend}`}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+    <div className="flex flex-col bg-slate-900 text-white" style={{ height: '100dvh', overflow: 'hidden' }}>
 
       {/* HEADER */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8 flex-shrink-0">
-        <div onClick={handleLogoTap} style={{cursor:'default',userSelect:'none'}}>
+        <div>
           <p className="text-[11px] font-bold tracking-[0.2em] text-blue-400 uppercase">Mulk Invest</p>
           <p className="text-xs text-slate-400">{t.objects(filtered.length)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Admin: online counter → Admin tabga o'tish */}
-          {isAdmin && (
-            <button onClick={() => setTab('admin' as any)}
-              className="flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
-              <span style={{width:7,height:7,borderRadius:'50%',background:onlineCount!==null?'#22c55e':'#64748b',display:'inline-block',boxShadow:onlineCount!==null?'0 0 6px #22c55e':'none',animation:onlineCount!==null?'pulse-green 2s infinite':'none'}}/>
-              <span className="text-xs font-semibold text-white">{onlineCount!==null?onlineCount:'—'}</span>
+          {/* Online indikator — faqat admin uchun */}
+          {isAdmin && onlineUsers.length > 0 && (
+            <button
+              onClick={() => { setTab('admin'); setAdminSubTab('online'); setSelected(null) }}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-900/60 hover:bg-emerald-800/70 border border-emerald-700/50 rounded-lg text-xs font-bold text-emerald-400 transition-colors">
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+              {onlineUsers.length}
             </button>
-          )}
-          {/* Admin mode: logo 5 marta yoki bu hidden area 3 marta */}
-          {!isAdmin && (
-            <div style={{width:40,height:28}} onClick={()=>{
-              adminTapRef.current+=1
-              clearTimeout(adminTapTimer.current)
-              if(adminTapRef.current>=3){setIsAdmin(true);setTab('admin' as any);adminTapRef.current=0}
-              else adminTapTimer.current=setTimeout(()=>{adminTapRef.current=0},2000)
-            }}/>
           )}
           <button onClick={cycleLang}
             className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold tracking-wide transition-colors">
             {lang.toUpperCase()}
           </button>
-          <button onClick={()=>load(true)} disabled={syncing} className="text-slate-400 hover:text-white p-1 transition-colors">
-            <IcRef s={syncing}/>
+          <button onClick={() => load(true)} disabled={syncing} className="text-slate-400 hover:text-white p-1 transition-colors">
+            <IcRef s={syncing} />
           </button>
         </div>
       </div>
@@ -772,141 +496,213 @@ export default function MapPage() {
       {/* TABS */}
       <div className="flex bg-slate-800/70 border-b border-white/8 flex-shrink-0">
         {([
-          {id:'gallery' as Tab, label:t.gallery, I:IcGrid},
-          {id:'map'     as Tab, label:t.mapTab,  I:IcMap },
-          {id:'filter'  as Tab, label:t.filter,  I:IcFlt },
-          ...(isAdmin ? [{id:'admin' as Tab, label:'Admin', I:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}] : []),
-        ]).map(({id,label,I})=>(
-          <button key={id} onClick={()=>{ setTab(id); if(id!=='map') setSelected(null); track('tab_switch',{tab:id}) }}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium relative transition-colors ${
-              tab===id?'text-blue-400':'text-slate-400 hover:text-slate-200'}`}>
-            <I/>
+          { id: 'gallery' as Tab, label: t.gallery, I: IcGrid },
+          { id: 'map' as Tab, label: t.mapTab, I: IcMap },
+          { id: 'filter' as Tab, label: t.filter, I: IcFlt },
+          ...(isAdmin ? [{ id: 'admin' as Tab, label: 'Admin', I: IcAdmin }] : []),
+        ]).map(({ id, label, I }) => (
+          <button key={id} onClick={() => { setTab(id); if (id !== 'map') setSelected(null) }}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium relative transition-colors ${tab === id ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}>
+            <I />
             {label}
-            {id==='filter'&&fCount>0&&(
+            {id === 'filter' && fCount > 0 && (
               <span className="absolute top-1 right-[20%] w-4 h-4 bg-blue-500 rounded-full text-[9px] font-bold flex items-center justify-center">
                 {fCount}
               </span>
             )}
-            {tab===id&&<span className="absolute bottom-0 inset-x-0 h-[2px] bg-blue-400 rounded-t-full"/>}
+            {id === 'admin' && isAdmin && onlineUsers.length > 0 && tab !== 'admin' && (
+              <span className="absolute top-1 right-[20%] w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+            )}
+            {tab === id && <span className="absolute bottom-0 inset-x-0 h-[2px] bg-blue-400 rounded-t-full" />}
           </button>
         ))}
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 relative" style={{minHeight:0}}>
+      <div className="flex-1 relative" style={{ minHeight: 0 }}>
 
-        {/* MAP - always mounted, shown when map tab */}
-        <div className="absolute inset-0" style={{display: tab==='map'?'flex':'none', flexDirection:'column'}}>
-          {/* Xarita qidiruvchi */}
-          <div className="flex-shrink-0 px-3 py-2 bg-slate-900/90 backdrop-blur-sm z-10">
-            <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2">
-              <span className="text-slate-500"><IcSrch/></span>
-              <input type="search" placeholder={t.search} value={search}
-                onChange={e=>setSearch(e.target.value)}
-                className="bg-transparent flex-1 text-white placeholder-slate-500 outline-none text-sm"
-                style={{fontSize:'16px'}}/>
-              {search&&<button onClick={()=>setSearch('')} className="text-slate-500 hover:text-white"><IcX/></button>}
-            </div>
-            {/* Qidiruv natijalari */}
-            {search && (
-              <div className="mt-1 bg-slate-800 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
-                {filtered.slice(0,8).map(h=>(
-                  <button key={h.id} onClick={()=>{openCard(h);setSearch('')}}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-700 border-b border-white/5 last:border-0">
-                    <p className="text-white text-xs font-medium truncate">{h.title}</p>
-                    <p className="text-slate-400 text-[10px]">{h.district} {h.price>0?`• $${(h.price/1000).toFixed(0)}k`:''}</p>
-                  </button>
-                ))}
-                {filtered.length===0&&<p className="text-slate-400 text-xs text-center py-3">{t.noResults}</p>}
-              </div>
-            )}
-          </div>
-          <div ref={mapRef} style={{flex:1}}/>
-
-          {/* CARD ON MAP (bottom sheet, no dark overlay) */}
-          {selected && tab==='map' && (
-            <MapCard
-              house={selected} t={t}
-              onClose={()=>setSelected(null)}
-              onShare={()=>shareHouse(selected)}
-              onCall={callSeller}
-              onOpenLightbox={(crmId,count,idx)=>setLightbox({crmId,count,idx})}
-              isAdmin={isAdmin} onEdit={openEdit}
-            />
-          )}
+        {/* MAP — har doim mounted, faqat map tabda ko'rinadi */}
+        <div className="absolute inset-0" style={{ display: tab === 'map' ? 'block' : 'none' }}>
+          <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
         </div>
 
         {/* GALLERY */}
-        {tab==='gallery'&&(
+        {tab === 'gallery' && (
           <div className="absolute inset-0 flex flex-col">
             <div className="px-3 py-2.5 border-b border-white/8 flex-shrink-0">
               <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5">
-                <span className="text-slate-500"><IcSrch/></span>
+                <span className="text-slate-500"><IcSrch /></span>
                 <input type="search" placeholder={t.search} value={search}
-                  onChange={e=>setSearch(e.target.value)}
+                  onChange={e => setSearch(e.target.value)}
                   className="bg-transparent flex-1 text-white placeholder-slate-500 outline-none"
-                  style={{fontSize:'16px'}}/>
-                {search&&<button onClick={()=>setSearch('')} className="text-slate-500 hover:text-white"><IcX/></button>}
+                  style={{ fontSize: '16px' }} />
+                {search && <button onClick={() => setSearch('')} className="text-slate-500 hover:text-white"><IcX /></button>}
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {filtered.length===0?(
+              {filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-48 gap-3 text-slate-500">
-                  <IcSrch/><p className="text-sm">{t.noResults}</p>
-                  <button onClick={()=>{setSearch('');setFilters(EMPTY)}} className="text-blue-400 text-xs underline">{t.clearFilter}</button>
+                  <IcSrch /><p className="text-sm">{t.noResults}</p>
+                  <button onClick={() => { setSearch(''); setFilters(EMPTY) }} className="text-blue-400 text-xs underline">{t.clearFilter}</button>
                 </div>
-              ):filtered.map(h=>(
-                <GCard
-                  key={h.id} h={h} t={t}
-                  onClick={()=>openCard(h)}
-                  onImageClick={(crmId,count,idx)=>{ setLightbox({crmId,count,idx}); track('photo_view',{crmId}) }}
-                  isAdmin={isAdmin}
-                  onEdit={openEdit}
-                  onPhotoCheck={(id,has)=>setPhotoHasMap(prev=>({...prev,[id]:has}))}
-                />
-              ))}
+              ) : filtered.map(h => <GCard key={h.id} h={h} t={t} onClick={() => openCard(h)} />)}
             </div>
-            {/* CARD OVERLAY in gallery (no map switch) */}
-            {selected&&(
-              <MapCard
-                house={selected} t={t}
-                onClose={()=>setSelected(null)}
-                onShare={()=>shareHouse(selected)}
-                onCall={callSeller}
-                onOpenLightbox={(crmId,count,idx)=>setLightbox({crmId,count,idx})}
-              />
-            )}
           </div>
         )}
 
         {/* FILTER */}
-        {tab==='filter'&&(
+        {tab === 'filter' && (
           <FPanel f={filters} setF={setFilters} t={t}
-            onApply={()=>{
-              boundsSet.current=false; setTab('map')
-              track('filter_apply', {
-                district: filters.district,
-                type: filters.type,
-                priceMin: filters.priceMin, priceMax: filters.priceMax,
-                roomMin: filters.roomMin,   roomMax: filters.roomMax,
-                areaMin: filters.areaMin,   areaMax: filters.areaMax,
-              })
-            }}
-            onReset={()=>{setFilters(EMPTY);boundsSet.current=false}}/>
+            districts={[...new Set(houses.map(h => h.district).filter(Boolean))].sort()}
+            resultCount={filtered.length}
+            onApply={() => { boundsSet.current = false; setTab('gallery') }}
+            onReset={() => { setFilters(EMPTY); boundsSet.current = false }} />
         )}
 
-        {/* ADMIN PANEL */}
-        {tab==='admin' && isAdmin && (
-          <AdminPanel
-            houses={houses}
-            onlineUsers={onlineUsers}
-            onRefresh={()=>{ load(true); openOnlinePanel() }}
-            onEdit={openEdit}
-            onHide={hideHouse}
-            tgApp={(window as any).Telegram?.WebApp}
+        {/* ADMIN TAB */}
+        {tab === 'admin' && isAdmin && (
+          <div className="absolute inset-0 flex flex-col">
+
+            {/* Sub-tabs */}
+            <div className="flex gap-2 p-3 border-b border-white/8 flex-shrink-0">
+              <button
+                onClick={() => setAdminSubTab('online')}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors ${adminSubTab === 'online'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-800 text-slate-300 border border-white/10'
+                  }`}>
+                <span className={`w-2 h-2 rounded-full ${onlineUsers.length > 0 ? 'bg-emerald-300 animate-pulse' : 'bg-slate-500'}`} />
+                Online ({onlineUsers.length})
+              </button>
+              <button
+                onClick={() => setAdminSubTab('hidden')}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 transition-colors ${adminSubTab === 'hidden'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-800 text-slate-300 border border-white/10'
+                  }`}>
+                🗂 Yashirilganlar
+              </button>
+            </div>
+
+            {/* Online foydalanuvchilar */}
+            {adminSubTab === 'online' && (
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {onlineUsers.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-56 gap-3 text-slate-500">
+                    <span className="text-5xl">👤</span>
+                    <p className="text-sm font-medium">Hozir hech kim yo'q</p>
+                    <p className="text-xs text-slate-600 text-center px-4">Mini app ni ochgan foydalanuvchilar shu yerda ko'rinadi</p>
+                  </div>
+                )}
+                {onlineUsers.map(u => (
+                  <button key={u.userId}
+                    onClick={() => openUserChat(u)}
+                    className="w-full bg-slate-800 hover:bg-slate-750 active:bg-slate-700 rounded-2xl px-4 py-3.5 flex items-center gap-3 transition-colors text-left border border-white/5">
+                    {/* Avatar */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-xl font-bold select-none">
+                        {(u.firstName?.[0] || '?').toUpperCase()}
+                      </div>
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-slate-800 rounded-full" />
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-snug">
+                        {[u.firstName, u.lastName].filter(Boolean).join(' ') || 'Noma\'lum'}
+                      </p>
+                      <p className="text-xs text-slate-400 truncate mt-0.5">
+                        {u.username ? `@${u.username}` : `ID: ${u.userId}`}
+                      </p>
+                    </div>
+                    {/* Time + action */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[11px] text-emerald-400 font-semibold">{secsAgo(u.lastSeen)}</p>
+                      <p className="text-[10px] text-blue-400 mt-0.5">chat ochish →</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Yashirilgan uylar */}
+            {adminSubTab === 'hidden' && <HiddenList />}
+          </div>
+        )}
+
+        {/* CARD OVERLAY — istalgan tabda ko'rinadi */}
+        {selected && (
+          <MapCard
+            house={selected} t={t}
+            onClose={() => setSelected(null)}
+            onShare={() => shareHouse(selected)}
+            onLightboxOpen={(index, count) => setLightboxInfo({ crmId: selected.id, index, count })}
+            isAdmin={isAdmin}
+            onAdminHide={async () => {
+              const tg = (window as any).Telegram?.WebApp
+              const chatId = tg?.initDataUnsafe?.user?.id
+              const initData = tg?.initData || ''
+              await fetch('/api/admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'hide', chatId, initData, crmId: selected.id }),
+              })
+              setHouses(prev => prev.filter(h => h.id !== selected.id))
+              setSelected(null)
+            }}
+            onAdminDeletePhoto={async (photoIndex: number) => {
+              const tg = (window as any).Telegram?.WebApp
+              const chatId = tg?.initDataUnsafe?.user?.id
+              const initData = tg?.initData || ''
+              const r = await fetch('/api/admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete-photo', chatId, initData, crmId: selected.id, photoIndex }),
+              })
+              return (await r.json()).ok
+            }}
+            onAdminEdit={async (editData) => {
+              const tg = (window as any).Telegram?.WebApp
+              const chatId = tg?.initDataUnsafe?.user?.id
+              const initData = tg?.initData || ''
+              const r = await fetch('/api/admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'edit', chatId, initData, crmId: selected.id, editData }),
+              })
+              const d = await r.json()
+              if (d.ok) {
+                const updated: House = {
+                  ...selected,
+                  title: editData.title || selected.title,
+                  price: editData.price ? Number(editData.price) : selected.price,
+                  rooms: editData.rooms ? Number(editData.rooms) : selected.rooms,
+                  area: editData.area ? Number(editData.area) : selected.area,
+                  floor: editData.floor ? Number(editData.floor) : selected.floor,
+                  totalFloors: editData.totalFloors ? Number(editData.totalFloors) : selected.totalFloors,
+                  district: editData.district ?? selected.district,
+                  landmark: editData.landmark ?? selected.landmark,
+                  description: editData.description ?? selected.description,
+                }
+                setHouses(prev => prev.map(h => h.id === selected.id ? updated : h))
+                setSelected(updated)
+              }
+              return d.ok
+            }}
           />
         )}
       </div>
+
+      {/* LIGHTBOX */}
+      {lightboxInfo && (
+        <Lightbox
+          crmId={lightboxInfo.crmId}
+          initialIndex={lightboxInfo.index}
+          count={lightboxInfo.count}
+          onClose={() => setLightboxInfo(null)}
+        />
+      )}
+
+      {showLeadForm && <LeadForm onClose={() => setShowLeadForm(false)} />}
 
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -914,90 +710,7 @@ export default function MapPage() {
         .slide-up{animation:slideUp 0.28s cubic-bezier(0.32,0.72,0,1) both}
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
-        @keyframes pulse-green{
-          0%,100%{box-shadow:0 0 4px #22c55e}
-          50%{box-shadow:0 0 10px #22c55e, 0 0 18px #22c55e80}
-        }
       `}</style>
-    </div>
-  )
-}
-
-// ────────────────────────────────────────────────────────────
-// MAP CARD (bottom sheet ON map, no dark overlay)
-// ────────────────────────────────────────────────────────────
-// ────────────────────────────────────────────────────────────
-// FULLSCREEN LIGHTBOX
-// ────────────────────────────────────────────────────────────
-function Lightbox({ crmId, count, initial, onClose }: {
-  crmId: number; count: number; initial: number; onClose: () => void
-}) {
-  const [cur, setCur] = useState(initial)
-  const startX = useRef(0)
-
-  const prev = () => setCur(c => Math.max(0, c - 1))
-  const next = () => setCur(c => Math.min(count - 1, c + 1))
-
-  const onTS = (e: React.TouchEvent) => { startX.current = e.touches[0].clientX }
-  const onTE = (e: React.TouchEvent) => {
-    const dx = e.changedTouches[0].clientX - startX.current
-    if (dx < -40) next()
-    else if (dx > 40) prev()
-  }
-
-  return (
-    <div className="fixed inset-0 z-[999] bg-black"
-      style={{touchAction:'pan-y'}}
-      onTouchStart={onTS} onTouchEnd={onTE}>
-
-      {/* Rasm — to'liq ekran */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`/api/photo/${crmId}?index=${cur}`} alt=""
-        style={{
-          position:'absolute', inset:0,
-          width:'100%', height:'100%',
-          objectFit:'contain',
-        }}
-      />
-
-      {/* Overlay: yopish + counter */}
-      <div className="absolute top-0 inset-x-0 flex items-center justify-between px-4 pt-10 pb-4"
-        style={{background:'linear-gradient(to bottom,rgba(0,0,0,0.6) 0%,transparent 100%)'}}>
-        <span className="text-white text-sm font-semibold">{cur+1} / {count}</span>
-        <button onClick={onClose}
-          className="w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white">
-          <IcX/>
-        </button>
-      </div>
-
-      {/* Chap/o'ng strelkalar */}
-      {count > 1 && (
-        <div className="absolute inset-y-0 inset-x-0 flex items-center justify-between px-3 pointer-events-none">
-          <button onClick={prev} disabled={cur===0}
-            className="pointer-events-auto w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white text-xl font-bold disabled:opacity-20">
-            ‹
-          </button>
-          <button onClick={next} disabled={cur===count-1}
-            className="pointer-events-auto w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white text-xl font-bold disabled:opacity-20">
-            ›
-          </button>
-        </div>
-      )}
-
-      {/* Pastki dots */}
-      {count > 1 && count <= 12 && (
-        <div className="absolute bottom-0 inset-x-0 flex justify-center gap-1.5 pb-10"
-          style={{background:'linear-gradient(to top,rgba(0,0,0,0.5) 0%,transparent 100%)'}}>
-          {Array.from({length: count}, (_, i) => (
-            <div key={i} onClick={() => setCur(i)} style={{
-              width: i===cur ? 18 : 6, height: 6, borderRadius: 3,
-              background: i===cur ? 'white' : 'rgba(255,255,255,0.4)',
-              transition:'all 0.2s', cursor:'pointer',
-            }}/>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -1005,17 +718,25 @@ function Lightbox({ crmId, count, initial, onClose }: {
 // ────────────────────────────────────────────────────────────
 // PHOTO CAROUSEL
 // ────────────────────────────────────────────────────────────
-function PhotoCarousel({ crmId, onOpen }: { crmId: number; onOpen:(count:number,idx:number)=>void }) {
+function PhotoCarousel({ crmId, onLightboxOpen, isAdmin, onDeletePhoto }: {
+  crmId: number
+  onLightboxOpen: (index: number, count: number) => void
+  isAdmin?: boolean
+  onDeletePhoto?: (photoIndex: number) => Promise<boolean>
+}) {
   const [count, setCount] = useState(1)
   const [current, setCurrent] = useState(0)
+  const [deleting, setDeleting] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  const fetchCount = () => {
     fetch(`/api/photo/${crmId}?count=1`)
       .then(r => r.json())
-      .then(d => { if (d.count > 0) setCount(d.count) })
-      .catch(() => {})
-  }, [crmId])
+      .then(d => { if (typeof d.count === 'number') setCount(Math.max(1, d.count)) })
+      .catch(() => { })
+  }
+
+  useEffect(() => { fetchCount() }, [crmId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScroll = () => {
     if (!scrollRef.current) return
@@ -1023,34 +744,59 @@ function PhotoCarousel({ crmId, onOpen }: { crmId: number; onOpen:(count:number,
     setCurrent(Math.max(0, Math.min(idx, count - 1)))
   }
 
+  const handleDelete = async (e: React.MouseEvent, index: number) => {
+    e.stopPropagation()
+    if (!onDeletePhoto || deleting) return
+    setDeleting(true)
+    const ok = await onDeletePhoto(index)
+    if (ok) {
+      const r = await fetch(`/api/photo/${crmId}?count=1`).catch(() => null)
+      const d = r ? await r.json().catch(() => ({})) : {}
+      const newCount = typeof d.count === 'number' ? Math.max(0, d.count) : Math.max(0, count - 1)
+      setCount(newCount || 1)
+      const newCurrent = Math.min(current, Math.max(0, newCount - 1))
+      setCurrent(newCurrent)
+      if (scrollRef.current) scrollRef.current.scrollLeft = newCurrent * scrollRef.current.offsetWidth
+    }
+    setDeleting(false)
+  }
+
   return (
-    <div className="relative bg-slate-800 rounded-2xl overflow-hidden mb-3" style={{height:'220px'}}>
+    <div className="relative bg-slate-800 rounded-2xl overflow-hidden mb-3" style={{ height: '220px' }}>
       <div ref={scrollRef} onScroll={handleScroll}
         className="flex h-full"
-        style={{overflowX:'scroll',scrollSnapType:'x mandatory',scrollbarWidth:'none'}}>
-        {Array.from({length: count}, (_, i) => (
-          <div key={i} style={{minWidth:'100%',scrollSnapAlign:'start',background:'#1e293b'}}
-            onClick={() => onOpen(count, i)}>
+        style={{ overflowX: 'scroll', scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+        {Array.from({ length: count }, (_, i) => (
+          <div key={i} onClick={() => onLightboxOpen(i, count)}
+            style={{ minWidth: '100%', scrollSnapAlign: 'start', background: '#1e293b', cursor: 'zoom-in', position: 'relative' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`/api/photo/${crmId}?index=${i}`} alt=""
               className="w-full h-full"
-              style={{objectFit:'contain',cursor:'pointer'}}
-              onError={e => { (e.target as HTMLImageElement).style.display='none' }}/>
+              style={{ objectFit: 'cover' }}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            {isAdmin && (
+              <button
+                onClick={e => handleDelete(e, i)}
+                disabled={deleting}
+                style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(220,38,38,0.88)', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white', fontSize: 15, zIndex: 5, opacity: deleting ? 0.5 : 1 }}>
+                ✕
+              </button>
+            )}
           </div>
         ))}
       </div>
       {count > 1 && (
         <>
           <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-            {current+1}/{count}
+            {current + 1}/{count}
           </div>
           <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5">
-            {Array.from({length: count}, (_, i) => (
+            {Array.from({ length: count }, (_, i) => (
               <div key={i} style={{
-                width: i===current ? 16 : 6, height:6,
-                borderRadius: 3, background: i===current ? 'white' : 'rgba(255,255,255,0.4)',
-                transition:'all 0.2s'
-              }}/>
+                width: i === current ? 16 : 6, height: 6,
+                borderRadius: 3, background: i === current ? 'white' : 'rgba(255,255,255,0.4)',
+                transition: 'all 0.2s',
+              }} />
             ))}
           </div>
         </>
@@ -1059,111 +805,191 @@ function PhotoCarousel({ crmId, onOpen }: { crmId: number; onOpen:(count:number,
   )
 }
 
-function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox,isAdmin,onEdit}:{
-  house:House; t:typeof T['uz']; onClose:()=>void; onShare:()=>void; onCall:()=>void
-  onOpenLightbox:(crmId:number,count:number,idx:number)=>void
-  isAdmin?:boolean; onEdit?:(h:House)=>void
+// ────────────────────────────────────────────────────────────
+// YANGA LIGHTBOX (SILLIQ SURILADIGAN)
+// ────────────────────────────────────────────────────────────
+function Lightbox({ crmId, initialIndex, count, onClose }: {
+  crmId: number; initialIndex: number; count: number; onClose: () => void
 }) {
-  const sheetRef  = useRef<HTMLDivElement>(null)
-  const startY    = useRef(0)
-  const dragging  = useRef(false)
-  const [fullscreen, setFullscreen] = useState(false)
+  const [current, setCurrent] = useState(initialIndex)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState(0)
+
+  // Qanchalik ko'p surish kerakligi (sezuvchanlik)
+  const minSwipeDistance = 45
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+    setIsDragging(true)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStart === null) return
+    const currentTouch = e.targetTouches[0].clientX
+    setTouchEnd(currentTouch)
+    setDragOffset(currentTouch - touchStart)
+  }
+
+  const onTouchEnd = () => {
+    setIsDragging(false)
+    if (touchStart === null || touchEnd === null) {
+      setDragOffset(0)
+      return
+    }
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe && current < count - 1) {
+      setCurrent(prev => prev + 1)
+    } else if (isRightSwipe && current > 0) {
+      setCurrent(prev => prev - 1)
+    }
+    setDragOffset(0)
+  }
+
+  return (
+    <div onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'black', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', touchAction: 'none' }}>
+      <button onClick={onClose}
+        style={{ position: 'absolute', top: 16, right: 16, color: 'white', fontSize: 28, cursor: 'pointer', lineHeight: 1, background: 'none', border: 'none', zIndex: 10 }}>✕</button>
+
+      <div
+        onClick={e => e.stopPropagation()}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          display: 'flex',
+          width: '100%',
+          height: '100%',
+          transform: `translateX(calc(${-current * 100}% + ${dragOffset}px))`,
+          transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+        }}>
+        {Array.from({ length: count }, (_, i) => (
+          <div key={i} style={{ minWidth: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/photo/${crmId}?index=${i}`} alt=""
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', pointerEvents: 'none' }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ position: 'absolute', bottom: 16, color: 'rgba(255,255,255,0.6)', fontSize: 13, pointerEvents: 'none' }}>
+        {current + 1}/{count}
+      </div>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
+// MAP CARD (bottom sheet)
+// ────────────────────────────────────────────────────────────
+type EditFields = {
+  title: string; price: string; rooms: string; area: string
+  floor: string; totalFloors: string; district: string; landmark: string; description: string
+}
+
+function MapCard({ house: h, t, onClose, onShare, onLightboxOpen, isAdmin, onAdminHide, onAdminDeletePhoto, onAdminEdit }: {
+  house: House; t: typeof T['uz']; onClose: () => void; onShare: () => void
+  onLightboxOpen: (index: number, count: number) => void
+  isAdmin?: boolean
+  onAdminHide?: () => Promise<void>
+  onAdminDeletePhoto?: (photoIndex: number) => Promise<boolean>
+  onAdminEdit?: (data: EditFields) => Promise<boolean>
+}) {
+  const [hiding, setHiding] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editData, setEditData] = useState<EditFields>({
+    title: '', price: '', rooms: '', area: '', floor: '', totalFloors: '', district: '', landmark: '', description: '',
+  })
+
+  useEffect(() => {
+    setEditMode(false)
+    setEditData({
+      title: h.title || '',
+      price: h.price ? String(h.price) : '',
+      rooms: h.rooms ? String(h.rooms) : '',
+      area: h.area ? String(h.area) : '',
+      floor: h.floor ? String(h.floor) : '',
+      totalFloors: h.totalFloors ? String(h.totalFloors) : '',
+      district: h.district || '',
+      landmark: h.landmark || '',
+      description: h.description || '',
+    })
+  }, [h.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setField = (k: keyof EditFields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setEditData(p => ({ ...p, [k]: e.target.value }))
+
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const startY = useRef(0)
+  const dragging = useRef(false)
 
   const onTS = (e: React.TouchEvent) => {
     startY.current = e.touches[0].clientY
     dragging.current = true
-    if (sheetRef.current) { sheetRef.current.style.transition='none' }
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
   }
   const onTM = (e: React.TouchEvent) => {
-    if (!dragging.current||!sheetRef.current||fullscreen) return
+    if (!dragging.current || !sheetRef.current) return
     const dy = e.touches[0].clientY - startY.current
     if (dy > 0) sheetRef.current.style.transform = `translateY(${dy}px)`
-    else if (dy < -30) { setFullscreen(true); sheetRef.current.style.transform='translateY(0)' }
   }
   const onTE = (e: React.TouchEvent) => {
-    if (!dragging.current||!sheetRef.current) return
+    if (!dragging.current || !sheetRef.current) return
     dragging.current = false
     const dy = e.changedTouches[0].clientY - startY.current
-    if (!fullscreen && dy > 80) { onClose() }
-    else if (fullscreen && dy > 120) { setFullscreen(false) }
-    else {
+    if (dy > 80) { onClose() } else {
       sheetRef.current.style.transition = 'transform 0.25s ease'
-      sheetRef.current.style.transform  = 'translateY(0)'
+      sheetRef.current.style.transform = 'translateY(0)'
     }
   }
 
   return (
     <>
-      {/* Tap-outside to close (transparent, above map) */}
-      <div className="absolute inset-x-0 top-0 z-40"
-        style={{bottom:'62dvh'}}
-        onClick={onClose}/>
-
-      {/* Card */}
+      <div className="absolute inset-x-0 top-0 z-40" style={{ bottom: '62dvh' }} onClick={onClose} />
       <div ref={sheetRef}
         className="slide-up absolute inset-x-0 bottom-0 z-50 bg-slate-900 rounded-t-3xl border-t border-white/10"
-        style={{height: fullscreen ? '100dvh' : '62dvh', display:'flex', flexDirection:'column', transition:'height 0.3s ease'}}>
+        style={{ height: '62dvh', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Drag handle — BIG touch area */}
-        <div
-          className="flex-shrink-0 flex flex-col items-center pt-2 pb-1"
-          style={{touchAction:'none', paddingTop:12, paddingBottom:8}}
+        {/* Drag handle */}
+        <div className="flex-shrink-0 flex flex-col items-center pt-3 pb-2"
+          style={{ touchAction: 'none' }}
           onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
-          <div className="w-10 h-1.5 bg-slate-600 rounded-full"/>
+          <div className="w-10 h-1.5 bg-slate-600 rounded-full" />
         </div>
 
-        {/* Buttons: fullscreen + close */}
-        <div className="absolute top-2 right-3 flex gap-1 z-10">
-          <button onClick={() => setFullscreen(f => !f)}
-            className="text-slate-500 hover:text-white p-1.5 text-sm">
-            {fullscreen ? '⬇' : '⬆'}
-          </button>
-          <button onClick={onClose}
-            className="text-slate-500 hover:text-white p-1.5">
-            <IcX/>
-          </button>
-        </div>
+        <button onClick={onClose} className="absolute top-2.5 right-3.5 text-slate-500 hover:text-white p-1.5 z-10">
+          <IcX />
+        </button>
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 pb-2">
+          <PhotoCarousel crmId={h.id} onLightboxOpen={onLightboxOpen} isAdmin={isAdmin} onDeletePhoto={onAdminDeletePhoto} />
 
-          {/* Photo Carousel */}
-          <PhotoCarousel crmId={h.id} onOpen={(count,idx)=>onOpenLightbox(h.id,count,idx)}/>
+          {h.jk && <span className="inline-block bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold mb-2">{h.jk}</span>}
 
-          {/* Badges */}
-          <div className="flex gap-2 mb-2 flex-wrap">
-            {h.isTop&&<span className="bg-yellow-500 text-black text-[10px] px-2 py-0.5 rounded-full font-bold">⭐ TOP</span>}
-            {h.jk&&<span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">{h.jk}</span>}
-          </div>
-
-          {/* Price + title */}
           <div className="mb-3">
-            {/* Discount: old price strikethrough in red */}
-            {h.oldPrice>0&&h.oldPrice>h.price&&(
-              <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-sm text-red-400 line-through">{priceStr(h.oldPrice)}</p>
-                <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
-                  −{discount(h.oldPrice,h.price)}%
-                </span>
-              </div>
-            )}
             <p className="text-xl font-bold text-blue-400">{priceStr(h.price)}</p>
             <p className="text-sm font-medium leading-snug mt-0.5">{h.title}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">CRM #{h.id}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">CRM #{h.id} {h.olx_id ? `| ${h.olx_id}` : ''}</p>
           </div>
 
-          {/* Info chips */}
           <div className="grid grid-cols-2 gap-2 mb-3">
-            {h.rooms>0&&<Chip icon="🛏" l={t.rooms} v={t.rooms_n(h.rooms)}/>}
-            {h.area >0&&<Chip icon="📐" l={t.area}  v={t.area_n(h.area)}/>}
-            {h.floor>0&&<Chip icon="🏢" l={t.floor}  v={t.floor_n(h.floor,h.totalFloors||'?')}/>}
-            {h.district&&<Chip icon="📍" l={t.district} v={h.district}/>}
+            {h.rooms > 0 && <Chip icon="🛏" l={t.rooms} v={t.rooms_n(h.rooms)} />}
+            {h.area > 0 && <Chip icon="📐" l={t.area} v={t.area_n(h.area)} />}
+            {h.floor > 0 && <Chip icon="🏢" l={t.floor} v={t.floor_n(h.floor, h.totalFloors || '?')} />}
+            {h.district && <Chip icon="📍" l={t.district} v={h.district} />}
           </div>
 
-          {h.landmark&&<IRow l={`🗺 ${t.landmark}`} v={h.landmark}/>}
-          {h.description&&<IRow l={t.desc} v={h.description}/>}
+          {h.landmark && <IRow l={`🗺 ${t.landmark}`} v={h.landmark} />}
+          {h.description && <IRow l={t.desc} v={h.description} />}
 
-          {h.yandex_url&&(
+          {h.yandex_url && (
             <a href={h.yandex_url} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5 mb-3 hover:bg-slate-700 transition-colors">
               <span>📌</span>
@@ -1172,22 +998,106 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox,isAdmin,onEdit
           )}
         </div>
 
+        {/* ── ADMIN PANEL ──────────────────────────────────── */}
+        {isAdmin && (
+          <div className="px-4 pb-2 flex-shrink-0">
+            <div className="bg-slate-800/80 border border-white/10 rounded-2xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-white/8">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-400 tracking-widest uppercase">⚙ Admin</span>
+                  <a href={`https://mulk.amocrm.ru/leads/detail/${h.id}`}
+                    target="_blank" rel="noreferrer"
+                    className="text-[10px] text-blue-400 underline underline-offset-2">
+                    CRM #{h.id} ↗
+                  </a>
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setEditMode(e => !e)}
+                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors ${editMode ? 'bg-slate-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}>
+                    {editMode ? '✕ Yopish' : '✏️ Tahrirlash'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!onAdminHide || hiding) return
+                      setHiding(true)
+                      await onAdminHide()
+                      setHiding(false)
+                    }}
+                    disabled={hiding}
+                    className="px-2.5 py-1 bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white text-[11px] font-bold rounded-lg transition-colors">
+                    {hiding ? '...' : '🙈 Yashir'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Edit Form */}
+              {editMode && (
+                <div className="p-3 space-y-2" style={{ maxHeight: '40dvh', overflowY: 'auto' }}>
+                  <EFld label="Nomi" value={editData.title} onChange={setField('title')} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <EFld label="Narx ($)" value={editData.price} onChange={setField('price')} type="number" />
+                    <EFld label="Xonalar" value={editData.rooms} onChange={setField('rooms')} type="number" />
+                    <EFld label="Maydon (m²)" value={editData.area} onChange={setField('area')} type="number" />
+                    <EFld label="Qavat" value={editData.floor} onChange={setField('floor')} type="number" />
+                    <EFld label="Jami qavat" value={editData.totalFloors} onChange={setField('totalFloors')} type="number" />
+                    <EFld label="Tuman" value={editData.district} onChange={setField('district')} />
+                  </div>
+                  <EFld label="Mo'ljal" value={editData.landmark} onChange={setField('landmark')} />
+                  <EFld label="Tavsif" value={editData.description} onChange={setField('description')} multiline />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Buttons */}
-        <div className="flex gap-2 px-4 pt-2 pb-5 border-t border-white/8 flex-shrink-0">
-          {isAdmin && (
-            <button onClick={()=>onEdit?.(h)}
-              className="flex items-center justify-center gap-1 px-3 py-3.5 bg-blue-700 hover:bg-blue-600 rounded-2xl text-sm font-semibold transition-colors">
-              ✏️
-            </button>
+        <div className="flex gap-2.5 px-4 pt-2 pb-5 border-t border-white/8 flex-shrink-0">
+          {isAdmin && editMode ? (
+            <>
+              <button onClick={() => setEditMode(false)}
+                className="flex-1 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">
+                Bekor
+              </button>
+              <button
+                disabled={saving}
+                onClick={async () => {
+                  if (!onAdminEdit || saving) return
+                  setSaving(true)
+                  const ok = await onAdminEdit(editData)
+                  setSaving(false)
+                  if (ok) setEditMode(false)
+                }}
+                className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-2xl text-sm font-semibold transition-colors">
+                {saving ? 'Saqlanmoqda...' : '💾 Saqlash'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={onShare}
+                className="flex-1 flex items-center justify-center gap-1.5 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">
+                <IcShare />{t.share}
+              </button>
+              <button
+                onClick={() => {
+                  const tg = (window as any).Telegram?.WebApp;
+                  const phone = '+998915514499';
+                  const message = `Sotuvchi bilan bog'lanish uchun ushbu raqamga qo'ng'iroq qilasizmi: ${phone}?`;
+
+                  if (tg && tg.showConfirm) {
+                    tg.showConfirm(message, (isOk: boolean) => {
+                      if (isOk) window.location.href = `tel:${phone}`;
+                    });
+                  } else {
+                    if (window.confirm(message)) window.location.href = `tel:${phone}`;
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold text-white">
+                <IcPhone />{t.contact}
+              </button>
+            </>
           )}
-          <button onClick={onShare}
-            className="flex-1 flex items-center justify-center gap-1.5 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">
-            <IcShare/>{t.share}
-          </button>
-          <button onClick={onCall}
-            className="flex-1 flex items-center justify-center gap-1.5 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold transition-colors">
-            <IcPhone/>{t.contact}
-          </button>
         </div>
       </div>
     </>
@@ -1197,399 +1107,316 @@ function MapCard({house:h,t,onClose,onShare,onCall,onOpenLightbox,isAdmin,onEdit
 // ────────────────────────────────────────────────────────────
 // GALLERY CARD
 // ────────────────────────────────────────────────────────────
-function GCard({h,t,onClick,onImageClick,onEdit,isAdmin,onPhotoCheck}:{
-  h:House; t:typeof T['uz']; onClick:()=>void; isAdmin?:boolean
-  onImageClick:(crmId:number,count:number,idx:number)=>void
-  onEdit?:(h:House)=>void
-  onPhotoCheck?:(id:number, has:boolean)=>void
-}) {
-  const [photoCount,setPhotoCount]=useState(1)
-  const [curIdx,setCurIdx]=useState(0)
-  const [imgErrors,setImgErrors]=useState<Record<number,boolean>>({})
-  const disc = discount(h.oldPrice, h.price)
-  const touchStartX = useRef(0)
-  const touchStartY = useRef(0)
-  const touchDeltaX = useRef(0)
-  const imgDivRef   = useRef<HTMLDivElement>(null)
-
-  // Horizontal swipe da mini app yopilmasin
-  useEffect(() => {
-    const el = imgDivRef.current
-    if (!el) return
-    const onMove = (e: TouchEvent) => {
-      const dx = Math.abs(e.touches[0].clientX - touchStartX.current)
-      const dy = Math.abs(e.touches[0].clientY - touchStartY.current)
-      if (dx > dy && dx > 8) e.preventDefault()
-    }
-    el.addEventListener('touchmove', onMove, { passive: false })
-    return () => el.removeEventListener('touchmove', onMove)
-  }, [])
-
-  useEffect(()=>{
-    fetch(`/api/photo/${h.id}?count=1`)
-      .then(r=>r.json())
-      .then(d=>{
-        if(d.count>0) { setPhotoCount(d.count); onPhotoCheck?.(h.id, true) }
-        else onPhotoCheck?.(h.id, false)
-      })
-      .catch(()=>{ onPhotoCheck?.(h.id, false) })
-  },[h.id])
-
-  const prevPhoto=(e:React.TouchEvent|React.MouseEvent)=>{
-    e.stopPropagation()
-    setCurIdx(i=>Math.max(0,i-1))
-  }
-  const nextPhoto=(e:React.TouchEvent|React.MouseEvent)=>{
-    e.stopPropagation()
-    setCurIdx(i=>Math.min(photoCount-1,i+1))
-  }
-  const onTouchStart=(e:React.TouchEvent)=>{
-    touchStartX.current=e.touches[0].clientX
-    touchStartY.current=e.touches[0].clientY
-    touchDeltaX.current=0
-  }
-  const onTouchMove=(e:React.TouchEvent)=>{
-    touchDeltaX.current=e.touches[0].clientX-touchStartX.current
-  }
-  const onTouchEnd=(e:React.TouchEvent)=>{
-    const dx=touchDeltaX.current
-    if(Math.abs(dx)>40){
-      e.stopPropagation()
-      if(dx<0) setCurIdx(i=>Math.min(photoCount-1,i+1))
-      else      setCurIdx(i=>Math.max(0,i-1))
-    } else if(Math.abs(dx)<8){
-      onClick()
-    }
-  }
-
-  const hasPhoto = !imgErrors[curIdx]
-
+function GCard({ h, t, onClick }: { h: House; t: typeof T['uz']; onClick: () => void }) {
+  const [photoErr, setPhotoErr] = useState(false)
   return (
-    <div
-      className={`w-full rounded-2xl overflow-hidden ${
-        h.isTop ? 'bg-slate-800 border border-yellow-500/40' : 'bg-slate-800 border border-white/5'
-      }`}
-      onClick={onClick}
-    >
-      {/* ── RASM ── */}
-      <div
-        ref={imgDivRef}
-        className="relative overflow-hidden cursor-pointer"
-        style={{ paddingTop: '72%', background: '#0f172a' }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onClick={e => e.stopPropagation()}
-      >
-        {hasPhoto ? (
+    <button onClick={onClick}
+      className="w-full text-left bg-slate-800 rounded-2xl overflow-hidden border border-white/5 active:scale-[0.985] transition-transform">
+      <div className="h-60 bg-gradient-to-br from-slate-700 to-slate-600 relative overflow-hidden">
+        {!photoErr ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={curIdx}
-            src={`/api/photo/${h.id}?index=${curIdx}`}
-            alt={h.title}
-            style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }}
-            onError={() => setImgErrors(prev=>({...prev,[curIdx]:true}))}
-          />
+          <img src={`/api/photo/${h.id}`} alt={h.title}
+            className="w-full h-full object-cover"
+            onError={() => setPhotoErr(true)} />
         ) : (
-          <div style={{position:'absolute',inset:0}} className="flex items-center justify-center bg-slate-700">
+          <div className="w-full h-full flex items-center justify-center">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
         )}
-        {/* Badges */}
-        <div className="absolute top-2.5 left-2.5 flex gap-1.5">
-          {h.isTop && <span className="bg-yellow-500 text-black text-[10px] px-2 py-0.5 rounded-full font-bold">⭐ TOP</span>}
-          {!h.isTop && h.jk && <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">{t.newTag}</span>}
-        </div>
-        {disc > 0 && <span className="absolute top-2.5 right-2.5 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">−{disc}%</span>}
-        {h.price > 0 && <span className="absolute bottom-2.5 right-2.5 bg-black/70 text-white text-sm font-bold px-2.5 py-1 rounded-xl">{priceLbl(h.price)}</span>}
-        {/* Photo dots */}
-        {photoCount > 1 && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-            {Array.from({length:Math.min(photoCount,7)},(_,i)=>(
-              <span key={i} style={{width:5,height:5,borderRadius:'50%',background:i===curIdx?'#fff':'rgba(255,255,255,0.4)',display:'inline-block'}}/>
-            ))}
-          </div>
-        )}
-        {/* Prev/Next arrows (on desktop) */}
-        {photoCount>1&&curIdx>0&&(
-          <button onClick={prevPhoto} className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">‹</button>
-        )}
-        {photoCount>1&&curIdx<photoCount-1&&(
-          <button onClick={nextPhoto} className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">›</button>
-        )}
+        {h.isTop && <span className="absolute top-2.5 left-2.5 bg-yellow-500 text-black text-[10px] px-2 py-0.5 rounded-full font-bold">⭐ TOP</span>}
+        {!h.isTop && h.jk && <span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">{t.newTag}</span>}
+        {h.price > 0 && <span className="absolute bottom-2.5 right-2.5 bg-black/65 text-white text-sm font-bold px-2.5 py-1 rounded-xl">{priceLbl(h.price)}</span>}
       </div>
-
-      {/* Admin edit tugmasi */}
-      {isAdmin && (
-        <button
-          onClick={e => { e.stopPropagation(); onEdit?.(h) }}
-          style={{position:'absolute', top:8, left:8, zIndex:20, background:'rgba(37,99,235,0.9)', color:'#fff', border:'none', borderRadius:8, padding:'4px 10px', fontSize:12, fontWeight:700, cursor:'pointer'}}>
-          ✏️ Edit
-        </button>
-      )}
-
-      {/* ── INFO: pastki qism ── */}
-      <div className="px-3.5 py-3 cursor-pointer" onClick={onClick}>
+      <div className="p-3.5">
         <p className="font-semibold text-sm leading-snug mb-1.5 line-clamp-2">{h.title}</p>
-        {disc > 0 && h.oldPrice > 0 && (
-          <p className="text-xs text-red-400 line-through mb-0.5">{priceStr(h.oldPrice)}</p>
-        )}
-        {(h.district || h.landmark) && (
-          <p className="text-xs text-slate-400 mb-2 truncate">📍 {h.district || h.landmark}</p>
-        )}
+        {(h.district || h.landmark) && <p className="text-xs text-slate-400 mb-2 truncate">📍 {h.district || h.landmark}</p>}
         <div className="flex gap-3 text-xs text-slate-300 flex-wrap">
           {h.rooms > 0 && <span>🛏 {t.rooms_n(h.rooms)}</span>}
-          {h.area  > 0 && <span>📐 {t.area_n(h.area)}</span>}
+          {h.area > 0 && <span>📐 {t.area_n(h.area)}</span>}
           {h.floor > 0 && <span>🏢 {t.floor_n(h.floor, h.totalFloors || '?')}</span>}
         </div>
       </div>
+    </button>
+  )
+}
+
+function Chip({ icon, l, v }: { icon: string; l: string; v: string }) {
+  return <div className="bg-slate-800 rounded-xl px-3 py-2.5"><p className="text-[9px] text-slate-400 mb-0.5">{icon} {l}</p><p className="text-sm font-semibold">{v}</p></div>
+}
+function IRow({ l, v }: { l: string; v: string }) {
+  return <div className="bg-slate-800 rounded-xl px-3.5 py-3 mb-2.5"><p className="text-[9px] text-slate-400 mb-0.5">{l}</p><p className="text-sm text-slate-200 leading-relaxed">{v}</p></div>
+}
+function EFld({ label, value, onChange, type = 'text', multiline = false }: {
+  label: string; value: string; onChange: (e: any) => void; type?: string; multiline?: boolean
+}) {
+  const cls = "w-full bg-slate-700/60 border border-white/10 focus:border-blue-500 rounded-xl px-3 py-2 text-white placeholder-slate-600 outline-none resize-none"
+  return (
+    <div>
+      <p className="text-[10px] text-slate-400 mb-1 font-medium">{label}</p>
+      {multiline
+        ? <textarea value={value} onChange={onChange} rows={2} className={cls} style={{ fontSize: '16px' }} />
+        : <input type={type} value={value} onChange={onChange} className={cls} style={{ fontSize: '16px' }} />
+      }
     </div>
   )
 }
 
-function Chip({icon,l,v}:{icon:string;l:string;v:string}) {
-  return <div className="bg-slate-800 rounded-xl px-3 py-2.5"><p className="text-[9px] text-slate-400 mb-0.5">{icon} {l}</p><p className="text-sm font-semibold">{v}</p></div>
-}
-function IRow({l,v}:{l:string;v:string}) {
-  return <div className="bg-slate-800 rounded-xl px-3.5 py-3 mb-2.5"><p className="text-[9px] text-slate-400 mb-0.5">{l}</p><p className="text-sm text-slate-200 leading-relaxed">{v}</p></div>
+// ────────────────────────────────────────────────────────────
+// HIDDEN LIST (admin tab inline)
+// ────────────────────────────────────────────────────────────
+function HiddenList() {
+  const [list, setList] = useState<House[]>([])
+  const [loading, setLoading] = useState(true)
+  const [restoring, setRestoring] = useState<number | null>(null)
+
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp
+    const chatId = tg?.initDataUnsafe?.user?.id
+    const initData = tg?.initData || ''
+    fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list-hidden', chatId, initData }),
+    })
+      .then(r => r.json())
+      .then(d => { if (d.ok) setList(d.hidden || []) })
+      .catch(() => { })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const restore = async (h: House) => {
+    if (restoring) return
+    const tg = (window as any).Telegram?.WebApp
+    const chatId = tg?.initDataUnsafe?.user?.id
+    const initData = tg?.initData || ''
+    setRestoring(h.id)
+    await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'restore', chatId, initData, crmId: h.id }),
+    }).catch(() => { })
+    setList(prev => prev.filter(x => x.id !== h.id))
+    setRestoring(null)
+  }
+
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center">
+      <p className="text-slate-400 text-sm">Yuklanmoqda...</p>
+    </div>
+  )
+
+  return (
+    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      {list.length === 0 && (
+        <div className="flex flex-col items-center justify-center h-56 gap-3 text-slate-500">
+          <span className="text-5xl">🗂</span>
+          <p className="text-sm font-medium">Yashirilgan uy yo'q</p>
+        </div>
+      )}
+      {list.map(h => (
+        <div key={h.id} className="bg-slate-800 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 border border-white/5">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{h.title || `#${h.id}`}</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {[h.district, h.price ? `$${h.price.toLocaleString()}` : ''].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+          <button
+            onClick={() => restore(h)}
+            disabled={restoring === h.id}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors flex-shrink-0">
+            {restoring === h.id ? '...' : '↩ Qaytarish'}
+          </button>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ────────────────────────────────────────────────────────────
 // FILTER PANEL
 // ────────────────────────────────────────────────────────────
-// ────────────────────────────────────────────────────────────
-// ADMIN PANEL
-// ────────────────────────────────────────────────────────────
-function AdminPinGate({onUnlock}:{onUnlock:()=>void}) {
-  const [pin, setPin] = useState('')
-  const [err, setErr] = useState(false)
-  const ADMIN_PIN = '1234'  // PIN ni o'zgartiring
-  const check = () => {
-    if (pin === ADMIN_PIN) { onUnlock() }
-    else { setErr(true); setPin(''); setTimeout(()=>setErr(false), 1500) }
-  }
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 gap-5 p-6">
-      <p className="text-4xl">🔐</p>
-      <p className="text-white font-bold text-lg">Admin kirish</p>
-      <input
-        type="password" inputMode="numeric" maxLength={6}
-        value={pin} onChange={e=>setPin(e.target.value)}
-        onKeyDown={e=>e.key==='Enter'&&check()}
-        placeholder="PIN kod"
-        className={`w-48 text-center bg-slate-800 border ${err?'border-red-500':'border-white/20'} rounded-xl px-4 py-3 text-white text-xl tracking-widest outline-none focus:border-blue-500`}
-        style={{fontSize:'20px'}}
-        autoFocus
-      />
-      {err && <p className="text-red-400 text-sm">PIN noto'g'ri</p>}
-      <button onClick={check}
-        className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl text-white font-bold transition-colors">
-        Kirish
-      </button>
-    </div>
-  )
-}
-
-function AdminPanel({houses,onlineUsers,onRefresh,onEdit,onHide,tgApp}:{
-  houses:House[]
-  onlineUsers:{id:string;username:string;lastSeen:number}[]
-  onRefresh:()=>void
-  onEdit:(h:House)=>void
-  onHide:(h:House)=>void
-  tgApp:any
+function FPanel({ f, setF, t, onApply, onReset, districts, resultCount }: {
+  f: Filters; setF: React.Dispatch<React.SetStateAction<Filters>>
+  t: typeof T['uz']; onApply: () => void; onReset: () => void
+  districts?: string[]; resultCount: number
 }) {
-  const [section, setSection] = useState<'users'|'houses'>('users')
-
-  const openUserChat = (u:{id:string;username:string}) => {
-    const isAnon = String(u.id).startsWith('anon_')
-    if (isAnon) return
-    try {
-      // Username bo'lsa @username orqali, bo'lmasa ID orqali
-      const link = u.username && u.username !== 'unknown'
-        ? `https://t.me/${u.username}`
-        : `tg://user?id=${u.id}`
-      if (tgApp?.openTelegramLink) tgApp.openTelegramLink(link)
-      else window.open(link, '_blank')
-    } catch {}
-  }
-
+  const set = (k: keyof Filters) => (v: string) => setF(p => ({ ...p, [k]: v }))
+  const distList = (districts && districts.length > 0) ? districts : DISTRICTS
   return (
-    <div className="absolute inset-0 flex flex-col bg-slate-950">
-      {/* Section toggle */}
-      <div className="flex gap-1 p-2 flex-shrink-0">
-        <button onClick={()=>setSection('users')}
-          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${section==='users'?'bg-blue-600 text-white':'bg-slate-800 text-slate-400'}`}>
-          👥 Online ({onlineUsers.length})
-        </button>
-        <button onClick={()=>setSection('houses')}
-          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${section==='houses'?'bg-blue-600 text-white':'bg-slate-800 text-slate-400'}`}>
-          🏠 Uylar ({houses.length})
-        </button>
-        <button onClick={onRefresh} className="px-3 py-2 bg-slate-800 rounded-xl text-slate-400 text-xs">↺</button>
-      </div>
+    <div className="absolute inset-0 overflow-y-auto bg-slate-900" style={{ paddingBottom: '88px' }}>
+      <div className="p-4 space-y-5">
+        <Sec title={t.district}>
+          <select className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-3 text-white"
+            style={{ fontSize: '16px' }} value={f.district} onChange={e => set('district')(e.target.value)}>
+            <option value="">{t.allDistricts}</option>
+            {distList.map(d => <option key={d} value={norm(d)}>{d}</option>)}
+          </select>
+        </Sec>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-2">
-
-        {/* ONLINE USERS */}
-        {section==='users' && (
-          onlineUsers.length === 0 ? (
-            <p className="text-slate-500 text-sm text-center py-8">Hozir hech kim online emas</p>
-          ) : onlineUsers.map(u => {
-            const isAnon = String(u.id).startsWith('anon_')
-            const secAgo = Math.max(0, Math.floor((Date.now()-u.lastSeen)/1000))
-            const timeStr = secAgo<60?`${secAgo}s`:`${Math.floor(secAgo/60)}m`
-            return (
-              <div key={u.id} onClick={()=>openUserChat(u)}
-                className={`flex items-center gap-3 bg-slate-800 rounded-xl px-3 py-2.5 ${!isAnon?'cursor-pointer active:bg-slate-700':''}`}>
-                <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-lg flex-shrink-0">
-                  {isAnon ? '👤' : '🙍'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">
-                    {isAnon ? 'Anonim' : (u.username ? `@${u.username}` : `User ${u.id}`)}
-                  </p>
-                  <p className="text-slate-400 text-xs">{isAnon ? 'Mac Telegram' : '💬 Bosib chat oching'}</p>
-                </div>
-                <span className="text-xs text-green-400 flex-shrink-0">{timeStr} oldin</span>
-              </div>
-            )
-          })
-        )}
-
-        {/* HOUSES WITH INLINE EDIT */}
-        {section==='houses' && [...houses].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).map(h => (
-          <div key={h.id} className="bg-slate-800 rounded-xl overflow-hidden border border-white/5">
-            <div className="flex items-center gap-2 px-3 py-2">
-              {/* Mini rasm */}
-              <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/photo/${h.id}`} alt="" className="w-full h-full object-cover"
-                  onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
-              </div>
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-xs font-semibold truncate">{h.title}</p>
-                <p className="text-slate-400 text-[10px]">{h.price>0?`$${(h.price/1000).toFixed(0)}k`:''} {h.district?`• ${h.district}`:''}</p>
-                <p className="text-slate-500 text-[9px]">#{h.id} {h.isTop?'⭐':''}</p>
-              </div>
-              {/* Actions */}
-              <div className="flex gap-1 flex-shrink-0">
-                <button onClick={()=>onEdit(h)}
-                  className="bg-blue-600 text-white text-[10px] px-2 py-1.5 rounded-lg font-medium">
-                  ✏️
-                </button>
-                <button onClick={()=>onHide(h)}
-                  className="bg-red-600 text-white text-[10px] px-2 py-1.5 rounded-lg font-medium">
-                  🚫
-                </button>
-              </div>
-            </div>
+        <Sec title={t.type}>
+          <div className="flex gap-2">
+            {([
+              { v: 'all' as const, l: t.all },
+              { v: 'new' as const, l: t.newBuild },
+              { v: 'secondary' as const, l: t.secondary },
+            ]).map(o => (
+              <button key={o.v} onClick={() => setF(p => ({ ...p, type: o.v }))}
+                className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${f.type === o.v ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 border border-white/10'
+                  }`} style={{ fontSize: '14px' }}>{o.l}</button>
+            ))}
           </div>
-        ))}
+        </Sec>
 
+        <Sec title={t.rooms}>   <Rng mn={f.roomMin} mx={f.roomMax} oMn={set('roomMin')} oMx={set('roomMax')} t={t} /></Sec>
+        <Sec title={t.area}>    <Rng mn={f.areaMin} mx={f.areaMax} oMn={set('areaMin')} oMx={set('areaMax')} t={t} /></Sec>
+        <Sec title={t.floors}>  <Rng mn={f.floorsMin} mx={f.floorsMax} oMn={set('floorsMin')} oMx={set('floorsMax')} t={t} /></Sec>
+        <Sec title={t.floor}>   <Rng mn={f.floorMin} mx={f.floorMax} oMn={set('floorMin')} oMx={set('floorMax')} t={t} /></Sec>
+        <Sec title={t.price}>   <Rng mn={f.priceMin} mx={f.priceMax} oMn={set('priceMin')} oMx={set('priceMax')} t={t} /></Sec>
+      </div>
+      <div className="fixed bottom-0 inset-x-0 bg-slate-900/96 border-t border-white/10 px-4 pt-2 pb-4">
+        <p className="text-center text-xs text-slate-400 mb-2">
+          {resultCount > 0
+            ? <span className="text-blue-400 font-semibold">{resultCount} ta ob'ekt topildi</span>
+            : <span className="text-red-400">Hech narsa topilmadi</span>
+          }
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onReset} className="flex-1 py-3.5 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">{t.reset}</button>
+          <button onClick={onApply} className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold transition-colors">{t.apply} →</button>
+        </div>
       </div>
     </div>
   )
 }
 
-function FPanel({f,setF,t,onApply,onReset}:{
-  f:Filters; setF:React.Dispatch<React.SetStateAction<Filters>>
-  t:typeof T['uz']; onApply:()=>void; onReset:()=>void
-}) {
-  const set=(k:keyof Filters)=>(v:string)=>setF(p=>({...p,[k]:v}))
-  const inp="bg-slate-800 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder-slate-600 focus:border-blue-500 outline-none w-full text-center"
-  const label="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1"
-  return (
-    <div className="absolute inset-0 overflow-y-auto bg-slate-900" style={{paddingBottom:'68px'}}>
-      <div className="p-3 space-y-3">
-
-        {/* Rayon */}
-        <select className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm"
-          style={{fontSize:'16px'}} value={f.district} onChange={e=>set('district')(e.target.value)}>
-          <option value="">{t.allDistricts}</option>
-          {DISTRICTS.map(d=><option key={d} value={d.toLowerCase()}>{d}</option>)}
-        </select>
-
-        {/* Tur */}
-        <div className="flex gap-1.5">
-          {([{v:'all' as const,l:t.all},{v:'new' as const,l:t.newBuild},{v:'secondary' as const,l:t.secondary}]).map(o=>(
-            <button key={o.v} onClick={()=>setF(p=>({...p,type:o.v}))}
-              className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${
-                f.type===o.v?'bg-blue-600 text-white':'bg-slate-800 text-slate-300 border border-white/10'
-              }`}>{o.l}</button>
-          ))}
-        </div>
-
-        {/* 2-ustunli grid: xonalar + kvadratura */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <p className={label}>{t.rooms}</p>
-            <div className="flex gap-1 items-center">
-              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.roomMin} onChange={e=>set('roomMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-              <span className="text-slate-600 text-xs">—</span>
-              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.roomMax} onChange={e=>set('roomMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-            </div>
-          </div>
-          <div>
-            <p className={label}>{t.area} m²</p>
-            <div className="flex gap-1 items-center">
-              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.areaMin} onChange={e=>set('areaMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-              <span className="text-slate-600 text-xs">—</span>
-              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.areaMax} onChange={e=>set('areaMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-            </div>
-          </div>
-          <div>
-            <p className={label}>{t.floor}</p>
-            <div className="flex gap-1 items-center">
-              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.floorMin} onChange={e=>set('floorMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-              <span className="text-slate-600 text-xs">—</span>
-              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.floorMax} onChange={e=>set('floorMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-            </div>
-          </div>
-          <div>
-            <p className={label}>{t.floors}</p>
-            <div className="flex gap-1 items-center">
-              <input type="number" inputMode="numeric" placeholder={t.from_} value={f.floorsMin} onChange={e=>set('floorsMin')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-              <span className="text-slate-600 text-xs">—</span>
-              <input type="number" inputMode="numeric" placeholder={t.to_} value={f.floorsMax} onChange={e=>set('floorsMax')(e.target.value)} className={inp} style={{fontSize:'16px'}}/>
-            </div>
-          </div>
-        </div>
-
-        {/* Narx */}
-        <div>
-          <p className={label}>{t.price} ($)</p>
-          <div className="flex gap-2 items-center">
-            <input type="number" inputMode="numeric" placeholder={t.from_} value={f.priceMin} onChange={e=>set('priceMin')(e.target.value)}
-              className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:border-blue-500 outline-none" style={{fontSize:'16px'}}/>
-            <span className="text-slate-600">—</span>
-            <input type="number" inputMode="numeric" placeholder={t.to_} value={f.priceMax} onChange={e=>set('priceMax')(e.target.value)}
-              className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:border-blue-500 outline-none" style={{fontSize:'16px'}}/>
-          </div>
-        </div>
-
-      </div>
-      <div className="fixed bottom-0 inset-x-0 flex gap-2 px-3 py-2.5 bg-slate-900/96 border-t border-white/10">
-        <button onClick={onReset} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-2xl text-sm font-semibold transition-colors">{t.reset}</button>
-        <button onClick={onApply} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-semibold transition-colors">{t.apply}</button>
-      </div>
-    </div>
-  )
-}
-
-function Sec({title,children}:{title:string;children:React.ReactNode}) {
+function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{title}</p>{children}</div>
 }
-function Rng({mn,mx,oMn,oMx,t}:{mn:string;mx:string;oMn:(v:string)=>void;oMx:(v:string)=>void;t:typeof T['uz']}) {
-  const cls="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-3 text-white placeholder-slate-600 focus:border-blue-500 outline-none"
+function Rng({ mn, mx, oMn, oMx, t }: { mn: string; mx: string; oMn: (v: string) => void; oMx: (v: string) => void; t: typeof T['uz'] }) {
+  const cls = "flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-3 text-white placeholder-slate-600 focus:border-blue-500 outline-none"
   return (
     <div className="flex gap-2 items-center">
-      <input type="number" placeholder={t.from_} value={mn} onChange={e=>oMn(e.target.value)} className={cls} style={{fontSize:'16px'}}/>
+      <input type="number" placeholder={t.from_} value={mn} onChange={e => oMn(e.target.value)} className={cls} style={{ fontSize: '16px' }} />
       <span className="text-slate-600 font-bold select-none">—</span>
-      <input type="number" placeholder={t.to_}   value={mx} onChange={e=>oMx(e.target.value)} className={cls} style={{fontSize:'16px'}}/>
+      <input type="number" placeholder={t.to_} value={mx} onChange={e => oMx(e.target.value)} className={cls} style={{ fontSize: '16px' }} />
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────
+// LEAD FORM (bottom sheet overlay, shown after 10s)
+// ────────────────────────────────────────────────────────────
+function LeadForm({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
+
+  const tg = (typeof window !== 'undefined') ? (window as any).Telegram?.WebApp : null
+  const user = tg?.initDataUnsafe?.user
+
+  useEffect(() => {
+    if (user?.first_name && !name) setName(user.first_name + (user.last_name ? ' ' + user.last_name : ''))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const submit = async () => {
+    if (!phone.trim()) return
+    setLoading(true)
+    try {
+      await fetch('/api/lead-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim() || user?.first_name || '',
+          phone: phone.trim(),
+          comment: comment.trim(),
+          telegramId: user?.id,
+          telegramUsername: user?.username,
+        }),
+      })
+      setDone(true)
+      try {
+        const key = user?.id ? `lfts_${user.id}` : 'lfts'
+        localStorage.setItem(key, String(Date.now()))
+      } catch { }
+      setTimeout(onClose, 2500)
+    } catch { }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9998, display: 'flex', alignItems: 'flex-end' }}>
+      <div className="slide-up" style={{ width: '100%', background: '#0f172a', borderRadius: '24px 24px 0 0', borderTop: '1px solid rgba(255,255,255,0.1)', padding: '0 0 32px' }}
+        onClick={e => e.stopPropagation()}>
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+          <div style={{ width: 40, height: 6, borderRadius: 3, background: '#334155' }} />
+        </div>
+
+        {done ? (
+          <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+            <p style={{ fontSize: 48, marginBottom: 12 }}>✅</p>
+            <p style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 8 }}>Muvaffaqiyatli yuborildi!</p>
+            <p style={{ fontSize: 14, color: '#94a3b8' }}>Tez orada mutaxassisimiz siz bilan bog'lanadi</p>
+          </div>
+        ) : (
+          <div style={{ padding: '4px 20px 0' }}>
+            <p style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 4 }}>🏠 Kerakli uy haqida</p>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Izlayotgan uyingiz haqida ma'lumot bering — mutaxassis yordam beradi</p>
+
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Ism</p>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Ismingiz..."
+                style={{ width: '100%', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', color: 'white', fontSize: 16, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Telefon raqam *</p>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+998 __ ___ __ __"
+                style={{ width: '100%', background: '#1e293b', border: `1px solid ${!phone.trim() ? 'rgba(255,255,255,0.1)' : '#3b82f6'}`, borderRadius: 12, padding: '12px 14px', color: 'white', fontSize: 16, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Qanday uy kerak?</p>
+              <textarea
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                placeholder="Masalan: 2 xona, Yunusobod, $60,000 gacha..."
+                rows={3}
+                style={{ width: '100%', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 14px', color: 'white', fontSize: 16, outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={onClose}
+                style={{ flex: 1, padding: '14px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, color: '#94a3b8', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                Keyinroq
+              </button>
+              <button
+                onClick={submit}
+                disabled={loading || !phone.trim()}
+                style={{ flex: 2, padding: '14px', background: phone.trim() ? '#2563eb' : '#1e293b', border: 'none', borderRadius: 16, color: 'white', fontSize: 15, fontWeight: 700, cursor: phone.trim() ? 'pointer' : 'not-allowed', opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'Yuborilmoqda...' : '📩 Yuborish'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

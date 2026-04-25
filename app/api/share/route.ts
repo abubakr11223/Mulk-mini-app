@@ -1,105 +1,214 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
-export async function POST(req: Request) {
+const KV_URL = (process.env.KV_REST_API_URL || '').replace(/\/$/, '')
+const KV_TOKEN = process.env.KV_REST_API_TOKEN || ''
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://joyme-clone.vercel.app'
+
+async function kvPipeline(commands: any[][]): Promise<any[]> {
+  if (!KV_URL || !KV_TOKEN) return []
   try {
-    const { chatId, house } = await req.json()
+    const r = await fetch(`${KV_URL}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(commands),
+      cache: 'no-store',
+    })
+    return await r.json()
+  } catch { return [] }
+}
 
-    if (!chatId || !house) {
-      return NextResponse.json({ error: 'Missing chatId or house data' }, { status: 400 })
+async function kvGet(key: string): Promise<string | null> {
+  const res = await kvPipeline([['get', key]])
+  return res[0]?.result ?? null
+}
+
+type PhotoEntry = { file_id: string; file_unique_id: string }
+
+function getPhotosFromFile(id: string): PhotoEntry[] {
+  try {
+    const raw = readFileSync(join(process.cwd(), 'public', 'photos_cache.json'), 'utf-8')
+    const cache = JSON.parse(raw)
+    const entry = cache[id]
+    if (!entry) return []
+    if (Array.isArray(entry.photos)) return entry.photos
+    if (entry.file_id) return [{ file_id: entry.file_id, file_unique_id: entry.file_unique_id }]
+    return []
+  } catch { return [] }
+}
+
+// QO'SHILDI: Endi bu funksiya ham crmId (raqam), ham olx_id (MUL-XX) ni qabul qiladi
+async function getPhotos(id: string): Promise<PhotoEntry[]> {
+  const listRes = await kvPipeline([['lrange', `photolist:${id}`, 0, -1]])
+  const list: string[] = listRes[0]?.result ?? []
+  if (list.length > 0) {
+    return list.map(s => { try { return JSON.parse(s) } catch { return null } }).filter(Boolean) as PhotoEntry[]
+  }
+  const val = await kvGet(`photo:${id}`)
+  if (val) {
+    try {
+      const arr = JSON.parse(val)
+      if (Array.isArray(arr) && arr.length > 0) return arr
+    } catch { }
+  }
+  return getPhotosFromFile(id)
+}
+
+async function getFileUrl(token: string, fileId: string): Promise<string | null> {
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`, { cache: 'no-store' })
+    const d = await r.json()
+    if (!d.ok) return null
+    return `https://api.telegram.org/file/bot${token}/${d.result.file_path}`
+  } catch { return null }
+}
+
+function parseChatId(initData: string): number | null {
+  try {
+    const params = new URLSearchParams(initData)
+    const userStr = params.get('user')
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      if (user?.id) return Number(user.id)
+    }
+    const chatStr = params.get('chat')
+    if (chatStr) {
+      const chat = JSON.parse(chatStr)
+      if (chat?.id) return Number(chat.id)
+    }
+    return null
+  } catch { return null }
+}
+
+// POST /api/share
+// Body: { crmId: number, olx_id?: string, chatId?: number, initData?: string, caption: string }
+export async function POST(req: NextRequest) {
+  try {
+    const { crmId, olx_id, chatId: rawChatId, initData, caption } = await req.json()
+
+    const chatId: number | null =
+      (rawChatId ? Number(rawChatId) : null) ||
+      (initData ? parseChatId(initData) : null)
+
+    if (!crmId || !chatId) {
+      return NextResponse.json({
+        ok: false,
+        error: `chatId topilmadi`,
+        debug: { rawChatId, hasInitData: !!initData, initDataLen: initData?.length ?? 0 }
+      }, { status: 400 })
     }
 
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) {
-       return NextResponse.json({ error: 'Bot token not configured' }, { status: 500 })
-    }
+    const token = process.env.TELEGRAM_BOT_TOKEN
+    if (!token) return NextResponse.json({ ok: false, error: 'no bot token' }, { status: 500 })
 
-    const priceFormatted = house.price ? house.price.replace('$', '').trim() : '-';
+    // QO'SHILDI: Agar olx_id (MUL-XX) mavjud bo'lsa, qidiruv uchun shuni ishlatamiz. Yo'qsa crmId ni ishlatamiz.
+    const searchId = olx_id ? String(olx_id) : String(crmId)
+    const photos = await getPhotos(searchId)
 
-    const landmarkLine = house.landmark ? `📍 Ориентир: ${house.landmark}\n` : '';
-    const districtLine = house.district ? `📍 Туман: ${house.district}\n` : '';
-    const buildingLine = house.buildingType ? `🏗 Формат: ${house.buildingType}\n` : '';
-    const roomsLine = house.rooms ? `🚪 Комнат: ${house.rooms}\n` : '';
-    const floorLine = house.floor ? `🏢 Этаж: ${house.floor}${house.totalFloors ? `/${house.totalFloors}` : ''}\n` : '';
-    const areaLine = house.area ? `📐 Площадь: ${house.area} m²\n` : '';
-    
-    const caption = `🪪 ID: ${house.crmId || house.id || ''}
-${districtLine}${landmarkLine}${buildingLine}💎 Состояние: Хороший ремонт
-${roomsLine}${floorLine}${areaLine}
-💰 Стоимость: ${priceFormatted} $ ${house.discount ? '(стартовая)' : ''}`.trim();
-
-    let images = [];
-    if (house.images && house.images.length > 0) {
-       images = house.images;
-    } else if (house.image) {
-       images = [house.image];
-    }
-
-    if (images.length === 0) {
-      images = ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80"];
-    }
-
-    const baseUrl = req.headers.get("origin") || process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.get("host")}`;
-
-    const media = images.slice(0, 10).map((imgUrl: string, idx: number) => {
-      let finalUrl = imgUrl;
-      // Absolute url mapping for telegram
-      if (finalUrl.startsWith('/')) {
-        finalUrl = `${baseUrl}${finalUrl}`;
-      } else if (finalUrl.includes('localhost') || finalUrl.includes('127.0.0.1')) {
-        finalUrl = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80";
-      }
-      return {
-        type: 'photo',
-        media: finalUrl,
-        caption: idx === 0 ? caption : undefined,
-      }
-    });
-
-    let res;
-    if (media.length > 1) {
-      res = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, {
+    if (photos.length === 0) {
+      const photoUrl = `${BASE_URL}/api/photo/${searchId}`
+      const rp = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          media: media
-        })
-      });
-    } else {
-      res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        body: JSON.stringify({ chat_id: chatId, photo: photoUrl, caption }),
+        cache: 'no-store',
+      })
+      const dp = await rp.json()
+      if (dp.ok) return NextResponse.json({ ok: true, method: 'sendPhoto:proxy' })
+
+      const ogUrl = `${BASE_URL}/api/og/${searchId}`
+      const rOg = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          photo: media[0].media,
-          caption: caption
-        })
-      });
+        body: JSON.stringify({ chat_id: chatId, photo: ogUrl, caption }),
+        cache: 'no-store',
+      })
+      const dOg = await rOg.json()
+      if (dOg.ok) return NextResponse.json({ ok: true, method: 'sendPhoto:og' })
+
+      const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: caption }),
+        cache: 'no-store',
+      })
+      const d = await r.json()
+      return NextResponse.json({ ok: d.ok, method: 'sendMessage', telegram: d })
     }
-    
-    let data = await res.json()
-    
-    if (!data.ok) {
-      if (data.description?.includes("failed to get HTTP URL") || data.description?.includes("wrong file identifier")) {
-         const fallbackRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+
+    if (photos.length === 1) {
+      const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, photo: photos[0].file_id, caption }),
+        cache: 'no-store',
+      })
+      const d = await r.json()
+      if (d.ok) return NextResponse.json({ ok: true, method: 'sendPhoto:file_id' })
+
+      const fileUrl = await getFileUrl(token, photos[0].file_id)
+      if (fileUrl) {
+        const r2 = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: `(Rasm yuklashda xato)\n\n${caption}`
-          })
-        });
-        data = await fallbackRes.json();
-        if(!data.ok) {
-            return NextResponse.json({ error: data.description }, { status: 400 })
-        }
-      } else {
-         return NextResponse.json({ error: data.description }, { status: 400 })
+          body: JSON.stringify({ chat_id: chatId, photo: fileUrl, caption }),
+          cache: 'no-store',
+        })
+        const d2 = await r2.json()
+        if (d2.ok) return NextResponse.json({ ok: true, method: 'sendPhoto:url' })
       }
+
+      const r3 = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: caption + `\n\n📸 ${BASE_URL}/api/photo/${searchId}`,
+        }),
+        cache: 'no-store',
+      })
+      const d3 = await r3.json()
+      return NextResponse.json({ ok: d3.ok, method: 'sendMessage:fallback', telegram: d3 })
     }
 
-    return NextResponse.json({ ok: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    const mediaGroup = photos.slice(0, 10).map((p, i) => ({
+      type: 'photo',
+      media: p.file_id,
+      ...(i === 0 ? { caption } : {}),
+    }))
+
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, media: mediaGroup }),
+      cache: 'no-store',
+    })
+    const d = await r.json()
+    if (d.ok) return NextResponse.json({ ok: true, method: 'sendMediaGroup' })
+
+    const r2 = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, photo: photos[0].file_id, caption }),
+      cache: 'no-store',
+    })
+    const d2 = await r2.json()
+    if (d2.ok) return NextResponse.json({ ok: true, method: 'sendPhoto:first_only' })
+
+    const r3 = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: caption + `\n\n📸 ${BASE_URL}/api/photo/${searchId}`,
+      }),
+      cache: 'no-store',
+    })
+    const d3 = await r3.json()
+    return NextResponse.json({ ok: d3.ok, method: 'sendMessage:fallback', telegram: d3 })
+
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e.message }, { status: 500 })
   }
 }
