@@ -162,7 +162,7 @@ async function fetchAllLeads(subdomain: string, token: string): Promise<any[]> {
     try { data = JSON.parse(text) } catch { break }
     const leads: any[] = data?._embedded?.leads ?? []
     if (leads.length === 0) break
-    all.push(...leads.filter((l) => l.status_id !== 142 && l.status_id !== 143 && l.status_id !== 84849330))
+    all.push(...leads.filter((l) => [84854090,84934418,84854094,84854098,84854102,84854106,84854110,84854114,84854118,85232970].includes(l.status_id)))
     page++
   }
   return all
