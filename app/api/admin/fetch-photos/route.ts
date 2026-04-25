@@ -17,11 +17,15 @@ async function kvPipeline(commands: any[][]): Promise<any[]> {
 function extractImageUrls(text: string): string[] {
   if (!text) return []
   const urls: string[] = []
-  const olx = text.match(/https:\/\/[a-z.]+\.olxcdn\.com\/[^\s"<>\n]+/gi) || []
-  urls.push(...olx)
+  // OLX CDN linklar — port (:443) bilan ham
+  const olx = text.match(/https:\/\/[a-z.]+\.olxcdn\.com(?::\d+)?\/[^\s"<>\n,]+/gi) || []
+  urls.push(...olx.map(u => u.replace(/[;,]s=\d+x\d+$/, ''))) // clean size suffix
+
+  // Boshqa rasm linklar
   const img = text.match(/https?:\/\/[^\s"<>\n]+\.(jpg|jpeg|png|webp)/gi) || []
   urls.push(...img)
-  return [...new Set(urls)]
+
+  return [...new Set(urls)].filter(u => u.length > 20)
 }
 
 export async function GET(req: Request) {
@@ -35,6 +39,19 @@ export async function GET(req: Request) {
 
   try {
     // Redis cache dan lead ID larini olish
+    // Debug mode - bitta lid noteslarini ko'rish
+    const debugId = url.searchParams.get('debug')
+    if (debugId) {
+      const https2 = await import('https')
+      const debugGet = (path_: string): Promise<string> => new Promise((resolve, reject) => {
+        https2.get({ hostname: `${subdomain}.amocrm.ru`, path: path_, headers: { Authorization: `Bearer ${token}` } },
+          (r: any) => { let d=''; r.on('data',(c:any)=>d+=c); r.on('end',()=>resolve(d)) }
+        ).on('error', reject)
+      })
+      const raw = await debugGet(`/api/v4/leads/${debugId}/notes?limit=10`)
+      return NextResponse.json({ ok: true, debug: true, raw: raw.substring(0, 2000) })
+    }
+
     const cacheRes = await kvPipeline([['get', 'cache:amo-leads']])
     const allHouses: any[] = JSON.parse(cacheRes[0]?.result || '[]')
     if (!allHouses.length) return NextResponse.json({ ok: false, error: 'Cache bo\'sh. Avval amo-leads?force=1 qiling' })
