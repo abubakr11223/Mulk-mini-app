@@ -157,7 +157,7 @@ async function fetchAllLeads(subdomain: string, token: string): Promise<any[]> {
     try { data = JSON.parse(text) } catch { break }
     const leads: any[] = data?._embedded?.leads ?? []
     if (leads.length === 0) break
-    all.push(...leads.filter((l: any) => l.status_id !== 142 && l.status_id !== 143))
+    all.push(...leads)
     page++
   }
   return all
@@ -351,6 +351,20 @@ export async function GET(req: Request) {
     setCache(results)
     kvSetLeads(results).catch(() => {}) // Redis ga ham saqlaydi
     console.log(`📍 ${results.length}/${allLeads.length} xaritaga tushdi, ${skipped} o'tkazib yuborildi`)
+
+    // Fon: CRM noteslardan rasmlarni avtomatik yangilash (barcha sahifalar)
+    if (forceRefresh) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}` || 'https://joyme-clone-abubakr11223s-projects.vercel.app'
+      ;(async () => {
+        for (let page = 1; page <= 15; page++) {
+          try {
+            const r = await fetch(`${baseUrl}/api/admin/fetch-photos?page=${page}`, { cache: 'no-store' })
+            const d = await r.json()
+            if (d.done || !d.nextPage) break
+          } catch { break }
+        }
+      })().catch(() => {})
+    }
 
     return NextResponse.json(results, {
       headers: {
