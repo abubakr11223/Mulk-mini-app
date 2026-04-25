@@ -183,7 +183,7 @@ export default function MapPage() {
   const [feedbackSent, setFeedbackSent] = useState(false)
   const [photoHasMap, setPhotoHasMap] = useState<Record<number,boolean>>({})
   const [editTarget, setEditTarget] = useState<House | null>(null)
-  const [editData, setEditData] = useState<{priceOverride?:number;titleOverride?:string;isTop?:boolean;hidden?:boolean}>({})
+  const [editData, setEditData] = useState<{priceOverride?:number;titleOverride?:string;isTop?:boolean;hidden?:boolean;lat?:number;lng?:number}>({})
   const [editSaving, setEditSaving] = useState(false)
   const [editToast, setEditToast] = useState<string|null>(null)
 
@@ -327,7 +327,7 @@ export default function MapPage() {
   // ── Admin: uyni tahrirlash ────────────────────────────────────────────────
   const openEdit = (h: House) => {
     setEditTarget(h)
-    setEditData({ priceOverride: h.price, titleOverride: h.title, isTop: h.isTop, hidden: false })
+    setEditData({ priceOverride: h.price, titleOverride: h.title, isTop: h.isTop, hidden: false, lat: h.lat || undefined, lng: h.lng || undefined })
   }
   const saveEdit = async () => {
     if (!editTarget) return
@@ -336,7 +336,9 @@ export default function MapPage() {
       const res = await fetch('/api/admin/edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ crmId: editTarget.id, ...editData }),
+        body: JSON.stringify({ crmId: editTarget.id, ...editData,
+          ...(editData.lat && editData.lng ? { latOverride: editData.lat, lngOverride: editData.lng } : {})
+        }),
       })
       const d = await res.json()
       if (d.ok) {
@@ -588,6 +590,18 @@ export default function MapPage() {
               <input type="number" inputMode="numeric" value={editData.priceOverride||''} onChange={e=>setEditData(d=>({...d,priceOverride:Number(e.target.value)}))}
                 className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500"
                 style={{fontSize:'16px'}}/>
+            </div>
+
+            {/* Koordinata */}
+            <div className="mb-3">
+              <p className="text-slate-400 text-xs mb-1">📍 Koordinata (lat, lng)</p>
+              <div className="flex gap-2">
+                <input type="number" placeholder="lat" value={editData.lat||''} onChange={e=>setEditData(d=>({...d,lat:Number(e.target.value)}))}
+                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500 text-sm" style={{fontSize:'16px'}}/>
+                <input type="number" placeholder="lng" value={editData.lng||''} onChange={e=>setEditData(d=>({...d,lng:Number(e.target.value)}))}
+                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500 text-sm" style={{fontSize:'16px'}}/>
+              </div>
+              <p className="text-slate-500 text-[10px] mt-1">Yandex Maps dan: ?ll=lng,lat</p>
             </div>
 
             {/* Toggles */}

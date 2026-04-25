@@ -19,7 +19,7 @@ async function kvPipeline(commands: any[][]): Promise<any[]> {
 // ── POST /api/admin/edit — uyni tahrirlash ────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { crmId, hidden, isTop, priceOverride, titleOverride } = await req.json()
+    const { crmId, hidden, isTop, priceOverride, titleOverride, latOverride, lngOverride } = await req.json()
     if (!crmId) return NextResponse.json({ ok: false, error: 'crmId kerak' })
 
     const key = `admin:edit:${crmId}`
@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
     if (isTop !== undefined) data.isTop = isTop
     if (priceOverride !== undefined) data.priceOverride = priceOverride
     if (titleOverride !== undefined) data.titleOverride = titleOverride
+    if (latOverride !== undefined && lngOverride !== undefined) {
+      data.latOverride = latOverride
+      data.lngOverride = lngOverride
+      // Redis coords ga ham saqlash
+      await kvPipeline([['set', `coords:${crmId}`, JSON.stringify({ lat: latOverride, lng: lngOverride }), 'EX', 60*60*24*365]])
+    }
     data.updatedAt = Date.now()
 
     await kvPipeline([['set', key, JSON.stringify(data), 'EX', 60 * 60 * 24 * 365]])
