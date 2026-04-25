@@ -60,13 +60,24 @@ export async function GET(req: Request) {
     const start = (startPage - 1) * batchSize
     const leads = allHouses.slice(start, start + batchSize).map(h => ({ id: h.id }))
 
-    // https module bilan notes fetch
+    // https module bilan notes fetch (redirect following)
     const https = await import('https')
-    const httpsGet = (path_: string): Promise<string> => {
+    const httpsGet = (host: string, path_: string): Promise<string> => {
       return new Promise((resolve, reject) => {
-        https.get({ hostname: `${subdomain}.amocrm.ru`, path: path_, headers: { Authorization: `Bearer ${token}` } },
-          (r: any) => { let d=''; r.on('data',(c:any)=>d+=c); r.on('end',()=>resolve(d)) }
-        ).on('error', reject)
+        https.get({ hostname: host, path: path_, headers: { Authorization: `Bearer ${token}` } },
+          (r: any) => {
+            if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
+              // Follow redirect
+              try {
+                const loc = new URL(r.headers.location)
+                httpsGet(loc.hostname, loc.pathname + loc.search).then(resolve).catch(reject)
+              } catch { resolve('{}') }
+              r.resume()
+              return
+            }
+            let d = ''; r.on('data',(c:any)=>d+=c); r.on('end',()=>resolve(d || '{}'))
+          }
+        ).on('error', () => resolve('{}'))
       })
     }
 
@@ -83,7 +94,7 @@ export async function GET(req: Request) {
 
       // Notes/chat dan rasm URLlarini olish
       try {
-        const notesRaw = await httpsGet(`/api/v4/leads/${lead.id}/notes?limit=50`)
+        const notesRaw = await httpsGet(`${subdomain}.amocrm.ru`, `/api/v4/leads/${lead.id}/notes?limit=50`)
         const notesData = JSON.parse(notesRaw)
         const notes: any[] = notesData?._embedded?.notes || []
 
