@@ -47,6 +47,11 @@ function isUzbekistan(lat: number, lng: number): boolean {
   return lat >= 37.0 && lat <= 45.6 && lng >= 55.9 && lng <= 73.2
 }
 
+// Toshkent koordinatalari validatsiyasi
+function isTashkent(lat: number, lng: number): boolean {
+  return lat >= 41.0 && lat <= 41.8 && lng >= 68.5 && lng <= 70.0
+}
+
 // ── Koordinata ajratish ───────────────────────────────────────────────────────
 function extractCoords(url: string): { lat: number; lng: number } | null {
   if (!url) return null
@@ -317,6 +322,12 @@ export async function GET(req: Request) {
         if (!coords && kvCoordsMap[String(lead.id)]) coords = kvCoordsMap[String(lead.id)]
         if (!coords) coords = { lat: 0, lng: 0 }
 
+        // Koordinata Toshkentda emasmi tekshirish
+        if (coords.lat !== 0 && !isTashkent(coords.lat, coords.lng)) {
+          console.log(`⚠️ Toshkentdan tashqarida: CRM #${lead.id} — lat=${coords.lat}, lng=${coords.lng}`)
+          coords = { lat: 0, lng: 0 } // Xato koordinatani 0 ga qaytarish
+        }
+
         const rawPrice = lead.price ?? 0
         const rawOldPrice = FIELD_IDS.old_price
           ? parseFloat(getField(fields, FIELD_IDS.old_price)) || 0
@@ -348,9 +359,11 @@ export async function GET(req: Request) {
       }
     }
 
+    // Koordinatasiz uylar soni
+    const invalidCoords = results.filter(h => !h.lat || h.lat === 0).length
     setCache(results)
     kvSetLeads(results).catch(() => {}) // Redis ga ham saqlaydi
-    console.log(`📍 ${results.length}/${allLeads.length} xaritaga tushdi, ${skipped} o'tkazib yuborildi`)
+    console.log(`📍 ${results.length}/${allLeads.length} xaritaga tushdi, ${skipped} o'tkazib yuborildi, ${invalidCoords} koordinatasiz`)
 
     // Fon: CRM noteslardan rasmlarni avtomatik yangilash (barcha sahifalar)
     if (forceRefresh) {
